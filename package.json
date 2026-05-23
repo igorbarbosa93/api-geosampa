@@ -16,7 +16,9 @@
 	"license": "GPL-3.0-or-later",
 	"dependencies": {
 		"vuepress": "^0.14.10",
-		"json-server": "^0.12.1"
+		"json-server": "^0.12.1",
+		"@anthropic-ai/sdk": "^0.39.0",
+		"multer": "^1.4.5-lts.2"
 	},
 	"devDependencies": {
 		"cross-env": "^5.2.0"
