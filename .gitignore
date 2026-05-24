@@ -1,4 +1,6 @@
-public/
+# VuePress build output (exceto o simulador)
+public/*
+!public/simulador.html
 
 # Logs
 logs
