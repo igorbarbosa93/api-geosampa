@@ -3,6 +3,10 @@ const { buildSystemPrompt, buildUserMessage } = require('../prompts/viabilidade'
 
 const SUPPORTED_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
+// claude-sonnet-5: rápido e preciso (padrão). Para laudos mais profundos,
+// configure ANTHROPIC_MODEL=claude-opus-4-7 no ambiente (2-3x mais lento).
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5'
+
 function getApiKey() {
   const raw = process.env.ANTHROPIC_API_KEY
   if (!raw) {
@@ -33,7 +37,7 @@ async function analyzeViability(imageBuffer, mediaType, extras = {}) {
   const userContent = buildUserMessage(base64Image, mediaType, extras)
 
   const response = await client.messages.create({
-    model: 'claude-opus-4-7',
+    model: MODEL,
     max_tokens: 20000,
     system: [
       {

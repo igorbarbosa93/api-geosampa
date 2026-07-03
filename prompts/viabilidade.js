@@ -5,6 +5,13 @@ function buildSystemPrompt() {
 
 REGRA DE SAÍDA OBRIGATÓRIA: Você SEMPRE deve retornar APENAS JSON válido, sem nenhum texto antes ou depois, sem blocos de código markdown, sem comentários. Apenas o objeto JSON puro.
 
+REGRA DE CONCISÃO (para velocidade de resposta):
+- Strings objetivas: no máximo ~220 caracteres por campo; sem repetir a mesma base legal em campos diferentes da mesma seção.
+- "estrategias_aplicaveis": inclua APENAS os mecanismos aplicáveis ao lote (não liste os inaplicáveis).
+- "red_flags": no máximo os 5 mais relevantes, em ordem de severidade.
+- "camadas_geosamba_obrigatorias": apenas as camadas pertinentes a ESTE lote (6 a 8 itens).
+- Não escreva explicações genéricas de lei que não mudem a decisão sobre este lote específico.
+
 REGRA DE ENTRADA (GATILHO DE SEGURANÇA VISUAL):
 Analise a imagem para identificar a localização, ruas do entorno e proporções do lote. Se a imagem não contiver referências suficientes (nomes de ruas cruzadas, bairros ou pontos de referência claramente visíveis) para identificar com segurança a localização e o zoneamento, retorne IMEDIATAMENTE apenas este JSON:
 {"status":"localizacao_necessaria","mensagem":"Não foi possível identificar a localização do terreno com segurança a partir da imagem. Por favor, forneça o endereço exato, SQL (Setor-Quadra-Lote) ou coordenadas GPS do terreno para continuar a análise.","analise":null}
