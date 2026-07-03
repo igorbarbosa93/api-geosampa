@@ -1,274 +1,318 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simulador de Viabilidade Urbanística — São Paulo</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    * { font-family: 'Inter', sans-serif; }
-    .drop-zone.dragover { border-color: #6366f1; background: #eef2ff; }
-    .accordion-content { max-height: 0; overflow: hidden; transition: max-height .35s ease; }
-    .accordion-content.open { max-height: 4000px; }
-    .ca-bar { transition: width .8s cubic-bezier(.4,0,.2,1); }
-    .fade-in { animation: fadeIn .4s ease; }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-    .spinner { animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .badge-alta  { background:#dcfce7; color:#166534; }
-    .badge-media { background:#fef9c3; color:#854d0e; }
-    .badge-baixa { background:#fee2e2; color:#991b1b; }
-    .risk-high   { background:#fee2e2; border-color:#fca5a5; color:#991b1b; }
-    .risk-medium { background:#fef9c3; border-color:#fde047; color:#854d0e; }
-    .risk-low    { background:#dcfce7; border-color:#86efac; color:#166534; }
-    pre { white-space: pre-wrap; word-break: break-word; }
-    .opp-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
-    .opp-card { transition: transform .15s, box-shadow .15s; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Viabilidade Urbanística — SP</title>
+<style>
+  :root{
+    color-scheme: light;
+    /* Paleta Tenda — Azul-Ardósia Claro */
+    --base:#F1F4F8; --surf:#FFFFFF; --raised:#E8EEF4;
+    --border:#E2E8F0; --border2:#CBD5E1;
+    --verm:#D8232A; --verm-l:rgba(216,35,42,.10); --verm-m:rgba(216,35,42,.28);
+    --amber:#C2410C; --amber-l:rgba(194,65,12,.10);
+    --teal:#0369A1;  --teal-l:rgba(3,105,161,.10);
+    --green:#15803D; --green-l:rgba(21,128,61,.10);
+    --hi:#1E293B; --mid:#475569; --sub:#64748B; --muted:#94A3B8; --faint:#CBD5E1;
+    --on-dark:#F1F5F9; --on-dark-sub:#94A3B8;
+    --r:6px;
+    --ff:'Segoe UI',system-ui,-apple-system,sans-serif;
+    --fm:'Courier New',monospace;
+    --shadow:0 1px 3px rgba(30,41,59,.06);
+    --shadow-md:0 2px 8px rgba(30,41,59,.08);
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:var(--ff); background:var(--base); color:var(--hi); font-size:14px; line-height:1.5; }
+  ::-webkit-scrollbar{ width:5px; } ::-webkit-scrollbar-track{ background:var(--raised); } ::-webkit-scrollbar-thumb{ background:var(--verm); border-radius:3px; }
+
+  .hero{ position:relative; background:linear-gradient(160deg,#0F172A 0%,#1E293B 55%,#0F172A 100%); padding:44px 40px 40px; overflow:hidden; }
+  .hero::before{ content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--verm) 0%,var(--amber) 100%); z-index:2; }
+  .hero::after{ content:''; position:absolute; right:-120px; top:-80px; width:380px; height:380px; border-radius:50%; background:radial-gradient(circle,rgba(216,35,42,.14) 0%,transparent 65%); }
+  .hero-in{ max-width:880px; margin:0 auto; position:relative; z-index:3; }
+  .hero-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; flex-wrap:wrap; gap:10px; }
+  .hero-wordmark{ font-size:15px; font-weight:900; letter-spacing:-.3px; color:#F8FAFC; }
+  .hero-wordmark span{ color:var(--verm); }
+  .hero-badge{ font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#CBD5E1; border:1px solid rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; background:rgba(15,23,42,.5); }
+  .eyebrow{ font-size:10px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--verm); margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+  .eyebrow::before{ content:''; width:24px; height:2px; background:var(--verm); flex-shrink:0; }
+  .hero-title{ font-size:clamp(26px,4.5vw,42px); font-weight:900; line-height:1.05; letter-spacing:-.8px; color:#F8FAFC; margin-bottom:12px; text-wrap:balance; }
+  .hero-title .accent{ color:var(--verm); }
+  .hero-desc{ font-size:13.5px; color:#CBD5E1; max-width:480px; line-height:1.7; }
+
+  .wrap{ max-width:880px; margin:0 auto; padding:0 20px 64px; }
+
+  .card{ background:var(--surf); border:1px solid var(--border); border-radius:var(--r); padding:26px; margin-bottom:16px; box-shadow:var(--shadow); margin-top:20px; }
+  .card-eyebrow{ font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--verm); display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .card-eyebrow::before{ content:''; width:20px; height:2px; background:var(--verm); flex-shrink:0; }
+  .card h2{ font-size:19px; font-weight:800; letter-spacing:-.4px; margin-bottom:4px; }
+  .card .sub{ font-size:13px; color:var(--sub); margin-bottom:22px; max-width:60ch; }
+
+  .drop{ border:1.5px dashed var(--border2); border-radius:var(--r); padding:36px 20px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:22px; background:var(--base); }
+  .drop:hover,.drop.over{ border-color:var(--verm); background:var(--verm-l); }
+  .drop p{ margin:4px 0; font-size:13.5px; color:var(--mid); }
+  .drop p b{ color:var(--hi); }
+  .drop .hint{ font-size:11.5px; color:var(--muted); }
+  .drop img{ max-height:180px; max-width:100%; border-radius:4px; box-shadow:var(--shadow-md); }
+  .drop .fname{ font-family:var(--fm); font-size:11px; color:var(--sub); margin-top:10px; }
+  .drop .swap{ font-size:11px; font-weight:700; color:var(--verm); margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+
+  .fields{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:22px; }
+  label{ display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:6px; }
+  input[type=text]{ width:100%; font-size:13.5px; font-family:var(--ff); padding:10px 12px; border:1px solid var(--border); border-radius:var(--r); background:var(--surf); color:var(--hi); }
+  input[type=text]:hover{ border-color:var(--border2); }
+  input[type=text]:focus{ outline:none; border-color:var(--verm); box-shadow:0 0 0 3px var(--verm-l); }
+  input::placeholder{ color:var(--faint); }
+
+  button.primary{ width:100%; padding:14px; font-size:13px; font-weight:800; font-family:var(--ff); letter-spacing:1.5px; text-transform:uppercase; color:#fff; background:var(--verm); border:none; border-radius:var(--r); cursor:pointer; transition:all .2s; }
+  button.primary:disabled{ background:var(--faint); cursor:not-allowed; }
+  button.primary:not(:disabled):hover{ background:#B91C22; box-shadow:0 4px 14px var(--verm-m); }
+  button.primary:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
+  button.ghost{ background:none; border:none; color:var(--verm); font-size:12px; font-weight:700; letter-spacing:.5px; cursor:pointer; padding:4px 0; font-family:var(--ff); }
+  button.ghost:hover{ text-decoration:underline; }
+
+  .hidden{ display:none !important; }
+
+  .loading{ text-align:center; padding:60px 20px; }
+  .loading b{ font-size:15px; font-weight:800; }
+  .loading .steps{ font-family:var(--fm); font-size:11.5px; color:var(--sub); margin-top:14px; min-height:18px; }
+  .bar{ width:240px; height:3px; background:var(--raised); margin:22px auto 0; border-radius:2px; overflow:hidden; }
+  .bar>div{ height:100%; width:30%; background:linear-gradient(90deg,var(--verm),var(--amber)); border-radius:2px; animation:slide 1.2s ease-in-out infinite; }
+  @keyframes slide{ 0%{margin-left:-30%;} 100%{margin-left:100%;} }
+  @media (prefers-reduced-motion:reduce){ .bar>div{ animation:none; width:100%; margin:0; } }
+
+  .banner{ margin-top:20px; padding:18px 20px; border-radius:var(--r); font-size:13px; }
+  .banner.warn{ background:var(--amber-l); border:1px solid var(--border); border-left:3px solid var(--amber); color:var(--mid); }
+  .banner.err{ background:var(--verm-l); border:1px solid var(--border); border-left:3px solid var(--verm); color:var(--mid); }
+  .banner b{ display:block; color:var(--hi); margin-bottom:4px; }
+  .banner button{ margin-top:10px; }
+
+  .report-head{ display:flex; justify-content:space-between; align-items:center; margin:24px 0 14px; }
+
+  .band{ background:linear-gradient(160deg,#1E293B 0%,#0F172A 100%); border-radius:var(--r); padding:30px; margin-bottom:16px; position:relative; overflow:hidden; box-shadow:var(--shadow-md); }
+  .band::before{ content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--verm) 0%,var(--amber) 100%); }
+  .band-grid{ display:flex; gap:28px; align-items:stretch; flex-wrap:wrap; }
+  .band-loc{ flex:1; min-width:250px; }
+  .band .eyebrow{ margin-bottom:8px; }
+  .band-title{ font-size:21px; font-weight:900; letter-spacing:-.4px; color:#F8FAFC; }
+  .chips{ display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .chip{ font-family:var(--fm); font-size:10.5px; padding:4px 10px; border-radius:3px; background:rgba(255,255,255,.07); color:#CBD5E1; border:1px solid rgba(255,255,255,.14); }
+  .chip.hot{ background:var(--verm-l); color:#FCA5A5; border-color:var(--verm-m); }
+  .ca-fig{ text-align:right; padding-left:28px; border-left:1px solid rgba(255,255,255,.12); min-width:160px; }
+  .ca-fig .lbl{ font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--on-dark-sub); }
+  .ca-fig .num{ font-family:var(--fm); font-variant-numeric:tabular-nums; font-size:52px; font-weight:700; line-height:1.05; color:var(--verm); text-shadow:0 0 30px rgba(216,35,42,.35); }
+  .ca-fig .base{ font-family:var(--fm); font-size:11.5px; color:var(--on-dark-sub); }
+  @media (max-width:560px){ .ca-fig{ border-left:none; padding-left:0; text-align:left; } }
+
+  .ca-track{ height:8px; background:rgba(255,255,255,.08); border-radius:4px; margin-top:24px; position:relative; overflow:hidden; }
+  .ca-fill{ position:absolute; inset:0 auto 0 0; background:linear-gradient(90deg,var(--verm),var(--amber)); border-radius:4px; transition:width .9s cubic-bezier(.3,.7,.3,1); width:0; }
+  .ca-mark{ position:absolute; top:-3px; bottom:-3px; width:2px; background:rgba(255,255,255,.4); }
+  .ca-scale{ display:flex; justify-content:space-between; font-family:var(--fm); font-size:10px; color:var(--on-dark-sub); margin-top:6px; }
+
+  .pills{ display:flex; gap:8px; flex-wrap:wrap; margin-top:20px; }
+  .pill{ font-size:11px; font-weight:700; padding:6px 12px; border-radius:3px; letter-spacing:.3px; }
+  .pill.good{ color:#6EE7A0; background:rgba(21,128,61,.22); }
+  .pill.warn{ color:#FBBF77; background:rgba(194,65,12,.22); }
+  .pill.neutral{ color:#CBD5E1; background:rgba(255,255,255,.07); }
+  .band .summary{ font-size:13px; color:#CBD5E1; margin-top:18px; max-width:64ch; line-height:1.7; }
+  .band .summary b{ color:#F8FAFC; }
+
+  /* Mapa de incidências */
+  .map-wrap{ position:relative; border-radius:var(--r); overflow:hidden; border:1px solid var(--border); background:var(--raised); }
+  .map-wrap canvas{ display:block; width:100%; height:auto; }
+  .legend{ display:flex; gap:14px; flex-wrap:wrap; margin-top:14px; }
+  .legend-item{ display:flex; align-items:center; gap:7px; font-size:12px; color:var(--mid); }
+  .legend-swatch{ width:14px; height:14px; border-radius:3px; border:1.5px solid; flex-shrink:0; }
+  .map-note{ font-size:12px; color:var(--sub); margin-top:12px; }
+  .map-note::before{ content:'⚠ '; color:var(--amber); }
+
+  .flag{ display:flex; gap:14px; padding:12px 0; border-bottom:1px solid var(--raised); font-size:13px; }
+  .flag:last-child{ border-bottom:none; padding-bottom:0; }
+  .flag .sev{ font-family:var(--fm); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:3px 8px; border-radius:3px; align-self:flex-start; margin-top:2px; white-space:nowrap; }
+  .sev.high{ color:var(--verm); background:var(--verm-l); }
+  .sev.medium{ color:var(--amber); background:var(--amber-l); }
+  .sev.low{ color:var(--green); background:var(--green-l); }
+  .flag b{ display:block; font-size:13.5px; font-weight:700; }
+  .flag .txt{ color:var(--mid); }
+  .flag .acao{ color:var(--sub); font-size:12.5px; margin-top:3px; }
+  .flag .acao::before{ content:'→ '; color:var(--verm); font-weight:700; }
+
+  .opp{ padding:16px 0; border-bottom:1px solid var(--raised); }
+  .opp:last-of-type{ border-bottom:none; }
+  .opp-head{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .opp-head b{ font-size:14px; font-weight:800; letter-spacing:-.2px; }
+  .via{ font-family:var(--fm); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:3px 8px; border-radius:3px; }
+  .via.alta{ color:var(--green); background:var(--green-l); }
+  .via.media{ color:var(--amber); background:var(--amber-l); }
+  .via.baixa{ color:var(--verm); background:var(--verm-l); }
+  .opp-lei{ font-family:var(--fm); font-size:11px; color:var(--teal); margin-top:4px; }
+  .opp-desc{ font-size:13px; color:var(--mid); margin-top:6px; max-width:68ch; }
+  .opp-meta{ display:flex; gap:18px; flex-wrap:wrap; margin-top:8px; font-family:var(--fm); font-size:11.5px; }
+  .opp-meta .m-ca{ color:var(--verm); font-weight:700; }
+  .opp-meta .m-custo{ color:var(--green); font-weight:700; }
+  .opp-meta .m-prazo{ color:var(--amber); font-weight:700; }
+  .combo{ margin-top:20px; padding:16px 18px; background:var(--green-l); border-left:3px solid var(--green); border-radius:var(--r); font-size:13px; color:var(--hi); }
+  .combo b{ color:var(--green); }
+
+  details{ border:1px solid var(--border); border-radius:var(--r); margin-bottom:10px; background:var(--surf); box-shadow:var(--shadow); }
+  details:hover{ border-color:var(--border2); }
+  summary{ padding:15px 20px; font-size:13px; font-weight:700; letter-spacing:-.1px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  summary::-webkit-details-marker{ display:none; }
+  summary .n{ font-family:var(--fm); font-size:11px; color:var(--verm); font-weight:700; margin-right:2px; }
+  summary::after{ content:'+'; font-family:var(--fm); color:var(--muted); font-size:17px; flex-shrink:0; }
+  details[open] summary::after{ content:'−'; }
+  summary:focus-visible{ outline:2px solid var(--verm); outline-offset:-2px; border-radius:var(--r); }
+  .det-body{ padding:0 20px 20px; }
+  .det-body pre{ font-family:var(--fm); font-size:11.5px; color:var(--mid); background:var(--base); border-radius:var(--r); padding:16px; white-space:pre-wrap; word-break:break-word; line-height:1.6; }
+
+  footer{ font-family:var(--fm); font-size:10.5px; color:var(--muted); text-align:center; margin-top:36px; line-height:1.8; }
+</style>
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body>
 
-<!-- Header -->
-<header class="bg-white border-b border-slate-200 sticky top-0 z-10">
-  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
-      </svg>
+<div class="hero">
+  <div class="hero-in">
+    <div class="hero-top">
+      <span class="hero-wordmark">via<span>SP</span></span>
+      <span class="hero-badge">GeoSampa API</span>
     </div>
-    <div>
-      <h1 class="text-sm font-semibold text-slate-900 leading-tight">Simulador de Viabilidade Urbanística</h1>
-      <p class="text-xs text-slate-500">São Paulo · EHIS / EZEIS · Legislação 2024-2025</p>
-    </div>
-    <div class="ml-auto flex items-center gap-2">
-      <span class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">GeoSampa API</span>
-    </div>
+    <div class="eyebrow">Inteligência de terrenos · EHIS / EZEIS</div>
+    <div class="hero-title">Viabilidade urbanística<br><span class="accent">em minutos</span>, não semanas.</div>
+    <p class="hero-desc">Envie o mapa do terreno. O sistema cruza zoneamento, ZEIS, Eixos de Estruturação, PIUs, OUCs e a legislação 2024–2025 para calcular o CA máximo real, o custo de outorga e desenhar as manchas de incidência sobre o lote.</p>
   </div>
-</header>
+</div>
 
-<main class="max-w-5xl mx-auto px-4 py-8">
+<div class="wrap">
 
-  <!-- Upload Form -->
-  <section id="form-section" class="fade-in">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-      <h2 class="text-base font-semibold text-slate-800 mb-1">Análise de Terreno</h2>
-      <p class="text-sm text-slate-500 mb-5">Envie a imagem do mapa com a poligonal do terreno. O sistema identificará o zoneamento e calculará o potencial máximo para EHIS/EZEIS.</p>
+  <!-- FORM -->
+  <section id="s-form">
+    <div class="card">
+      <div class="card-eyebrow">Nova análise</div>
+      <h2>Análise de terreno</h2>
+      <p class="sub">Envie a imagem do mapa com a poligonal. Quanto mais referências visíveis (ruas, bairros), maior a precisão — ou informe endereço/SQL diretamente.</p>
 
-      <!-- Drop zone -->
-      <div id="drop-zone" class="drop-zone border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-slate-50 transition-all mb-5" onclick="document.getElementById('file-input').click()">
-        <div id="drop-placeholder">
-          <svg class="w-10 h-10 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-          <p class="text-sm font-medium text-slate-600">Arraste o mapa do terreno aqui</p>
-          <p class="text-xs text-slate-400 mt-1">ou clique para selecionar · JPEG, PNG, WEBP</p>
+      <div class="drop" id="drop" role="button" tabindex="0" aria-label="Selecionar imagem do mapa">
+        <div id="drop-empty">
+          <p><b>Arraste o mapa do terreno aqui</b></p>
+          <p class="hint">ou clique para selecionar · JPEG, PNG, WEBP · máx. 20 MB</p>
         </div>
-        <div id="drop-preview" class="hidden">
-          <img id="preview-img" class="max-h-48 mx-auto rounded-lg object-contain" alt="Preview">
-          <p id="preview-name" class="text-xs text-slate-500 mt-2"></p>
-          <p class="text-xs text-indigo-600 mt-1 font-medium">Clique para trocar a imagem</p>
+        <div id="drop-full" class="hidden">
+          <img id="preview" alt="Pré-visualização do mapa">
+          <div class="fname" id="fname"></div>
+          <div class="swap">Clique para trocar</div>
         </div>
       </div>
-      <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
+      <input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
 
-      <!-- Optional fields -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Endereço <span class="text-slate-400">(opcional)</span></label>
-          <input id="input-endereco" type="text" placeholder="Rua, número, bairro" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">SQL <span class="text-slate-400">(opcional)</span></label>
-          <input id="input-sql" type="text" placeholder="000.000.0000-0" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Coordenadas <span class="text-slate-400">(opcional)</span></label>
-          <input id="input-coord" type="text" placeholder="-23.550520, -46.633308" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400">
-        </div>
+      <div class="fields">
+        <div><label for="f-end">Endereço · opcional</label><input type="text" id="f-end" placeholder="R. Frei Caneca, 627 — Consolação"></div>
+        <div><label for="f-sql">SQL · opcional</label><input type="text" id="f-sql" placeholder="010.034.1008-1"></div>
+        <div><label for="f-coord">Coordenadas · opcional</label><input type="text" id="f-coord" placeholder="-23.5539, -46.6520"></div>
       </div>
 
-      <button id="btn-analisar" onclick="analisar()" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors text-sm">
-        Analisar Terreno
-      </button>
-    </div>
-
-    <p class="text-xs text-center text-slate-400">Powered by Claude Opus + GeoSampa API · Legislação: Lei 17.975/2023, Decreto 63.728/2024, Lei 18.209/2024</p>
-  </section>
-
-  <!-- Loading -->
-  <section id="loading-section" class="hidden">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center fade-in">
-      <svg class="spinner w-10 h-10 text-indigo-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-      </svg>
-      <p class="text-base font-semibold text-slate-700">Analisando terreno…</p>
-      <p class="text-sm text-slate-400 mt-1">Cruzando zoneamento, PIUs, OUCs e legislação vigente</p>
-      <div class="mt-5 w-64 mx-auto bg-slate-100 rounded-full h-1.5">
-        <div class="bg-indigo-500 h-1.5 rounded-full animate-pulse" style="width:70%"></div>
-      </div>
+      <button class="primary" id="btn-run" disabled>Analisar terreno</button>
     </div>
   </section>
 
-  <!-- Location required banner -->
-  <section id="location-section" class="hidden">
-    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-6 fade-in">
-      <div class="flex items-start gap-3">
-        <svg class="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-        </svg>
-        <div>
-          <h3 class="font-semibold text-amber-800 mb-1">Localização não identificada na imagem</h3>
-          <p id="location-msg" class="text-sm text-amber-700"></p>
-          <button onclick="voltarFormulario()" class="mt-3 text-sm font-medium text-amber-800 underline">Voltar e preencher endereço ou SQL</button>
-        </div>
-      </div>
+  <!-- LOADING -->
+  <section id="s-loading" class="hidden">
+    <div class="card loading">
+      <b>Analisando terreno…</b>
+      <div class="steps" id="load-step">Enviando imagem e cruzando legislação vigente</div>
+      <div class="bar"><div></div></div>
     </div>
   </section>
 
-  <!-- Error banner -->
-  <section id="error-section" class="hidden">
-    <div class="bg-red-50 border border-red-200 rounded-2xl p-6 mb-6 fade-in">
-      <div class="flex items-start gap-3">
-        <svg class="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <div>
-          <h3 class="font-semibold text-red-800 mb-1">Erro na análise</h3>
-          <p id="error-msg" class="text-sm text-red-700"></p>
-          <button onclick="voltarFormulario()" class="mt-3 text-sm font-medium text-red-800 underline">Tentar novamente</button>
-        </div>
-      </div>
+  <!-- LOCATION NEEDED -->
+  <section id="s-location" class="hidden">
+    <div class="banner warn">
+      <b>Localização não identificada na imagem</b>
+      <span id="location-msg"></span>
+      <div><button class="ghost" onclick="show('form')">← Voltar e preencher endereço ou SQL</button></div>
     </div>
   </section>
 
-  <!-- Results -->
-  <section id="result-section" class="hidden fade-in">
-
-    <!-- Nova análise button -->
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-base font-semibold text-slate-800">Resultado da Análise</h2>
-      <button onclick="voltarFormulario()" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-        Nova análise
-      </button>
+  <!-- ERROR -->
+  <section id="s-error" class="hidden">
+    <div class="banner err">
+      <b>Erro na análise</b>
+      <span id="error-msg"></span>
+      <div><button class="ghost" onclick="show('form')">← Tentar novamente</button></div>
     </div>
-
-    <!-- Summary card -->
-    <div id="summary-card" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-4">
-      <div class="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <svg class="w-4 h-4 text-indigo-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
-            <span id="res-localizacao" class="text-sm font-semibold text-slate-800"></span>
-          </div>
-          <span id="res-zoneamento" class="inline-block text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium"></span>
-        </div>
-        <div id="res-confianca" class="text-xs px-2 py-1 rounded-lg font-medium"></div>
-      </div>
-
-      <!-- CA bar -->
-      <div class="mt-5">
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-xs font-medium text-slate-500">Potencial Construtivo (CA)</span>
-          <span id="res-ca-label" class="text-sm font-bold text-indigo-700"></span>
-        </div>
-        <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
-          <div id="res-ca-bar" class="ca-bar h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full" style="width:0%"></div>
-        </div>
-        <div class="flex justify-between mt-1">
-          <span class="text-xs text-slate-400">CA 0</span>
-          <span class="text-xs text-slate-400">CA 6</span>
-        </div>
-      </div>
-
-      <!-- Outorga pill -->
-      <div class="mt-4 flex flex-wrap gap-2">
-        <div id="res-outorga" class="text-xs px-3 py-1.5 rounded-lg font-medium border"></div>
-        <div id="res-unidades" class="text-xs px-3 py-1.5 rounded-lg font-medium border bg-slate-50 text-slate-600 border-slate-200"></div>
-        <div id="res-urgencia" class="hidden text-xs px-3 py-1.5 rounded-lg font-medium border bg-amber-50 text-amber-700 border-amber-200"></div>
-      </div>
-
-      <p id="res-mensagem" class="text-sm text-slate-600 mt-3 leading-relaxed"></p>
-    </div>
-
-    <!-- Red flags -->
-    <div id="red-flags-section" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-4">
-      <h3 class="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
-        <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        Red Flags
-      </h3>
-      <div id="red-flags-list" class="flex flex-wrap gap-2"></div>
-    </div>
-
-    <!-- Oportunidades de CA -->
-    <div id="opp-section" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-4">
-      <h3 class="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
-        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-        Oportunidades de Incremento de CA
-      </h3>
-      <p id="opp-combo" class="text-xs text-slate-500 mb-4"></p>
-      <div id="opp-list" class="space-y-2"></div>
-      <div id="opp-blockers" class="mt-4 hidden">
-        <h4 class="text-xs font-semibold text-red-700 mb-2">Bloqueadores identificados</h4>
-        <div id="opp-blockers-list" class="space-y-2"></div>
-      </div>
-    </div>
-
-    <!-- Detail accordion -->
-    <div class="space-y-3">
-      <div id="acc-area"       data-key="1_area_liquida"         class="accordion-block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
-      <div id="acc-leg"        data-key="2_legislacao_especifica" class="accordion-block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
-      <div id="acc-ehis"       data-key="3_enquadramento_ehis_ezeis" class="accordion-block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
-      <div id="acc-max"        data-key="4_maximizacao"           class="accordion-block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
-      <div id="acc-check"      data-key="5_checklist"             class="accordion-block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
-    </div>
-
   </section>
-</main>
+
+  <!-- REPORT -->
+  <section id="s-report" class="hidden"></section>
+
+  <footer>
+    Lei 16.402/2016 · Lei 17.975/2023 · Decreto 63.728/2024 · Lei 18.209/2024<br>
+    Laudo preliminar gerado por IA — não substitui análise jurídica
+  </footer>
+</div>
 
 <script>
 const API_URL = '/v1/viabilidade'
+const $ = id => document.getElementById(id)
 let selectedFile = null
+let uploadedImage = null   // Image para desenhar overlays no laudo
 
-// --- File handling ---
-const dropZone = document.getElementById('drop-zone')
-const fileInput = document.getElementById('file-input')
+const OVERLAY_STYLES = {
+  app_corrego:          { fill:'rgba(3,105,161,.38)',  stroke:'#0369A1', label:'APP / curso d’água' },
+  melhoramento_viario:  { fill:'rgba(216,35,42,.38)',  stroke:'#D8232A', label:'Melhoramento viário' },
+  linha_transmissao:    { fill:'rgba(194,65,12,.38)',  stroke:'#C2410C', label:'Linha de transmissão' },
+  ferrovia:             { fill:'rgba(120,53,15,.38)',  stroke:'#78350F', label:'Ferrovia' },
+  tombamento_ambiencia: { fill:'rgba(107,33,168,.32)', stroke:'#6B21A8', label:'Ambiência de tombamento' },
+  outro:                { fill:'rgba(100,116,139,.35)',stroke:'#64748B', label:'Outra restrição' }
+}
+const TERRENO_STYLE = { stroke:'#D8232A', fill:'rgba(216,35,42,.06)' }
 
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover') })
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'))
-dropZone.addEventListener('drop', e => {
-  e.preventDefault()
-  dropZone.classList.remove('dragover')
-  const f = e.dataTransfer.files[0]
-  if (f) setFile(f)
-})
-fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]) })
+// ─── Upload ───
+const drop = $('drop'), file = $('file')
+drop.addEventListener('click', () => file.click())
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click() } })
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over') })
+drop.addEventListener('dragleave', () => drop.classList.remove('over'))
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]) })
+file.addEventListener('change', () => { if (file.files[0]) setFile(file.files[0]) })
 
 function setFile(f) {
   selectedFile = f
-  document.getElementById('drop-placeholder').classList.add('hidden')
-  document.getElementById('drop-preview').classList.remove('hidden')
-  document.getElementById('preview-name').textContent = f.name + ' (' + (f.size / 1024).toFixed(0) + ' KB)'
-  const reader = new FileReader()
-  reader.onload = e => { document.getElementById('preview-img').src = e.target.result }
-  reader.readAsDataURL(f)
-  document.getElementById('btn-analisar').disabled = false
+  $('drop-empty').classList.add('hidden')
+  $('drop-full').classList.remove('hidden')
+  $('fname').textContent = f.name + ' · ' + (f.size/1024).toFixed(0) + ' KB'
+  const r = new FileReader()
+  r.onload = e => {
+    $('preview').src = e.target.result
+    uploadedImage = new Image()
+    uploadedImage.src = e.target.result
+  }
+  r.readAsDataURL(f)
+  $('btn-run').disabled = false
 }
 
-// --- Main analysis ---
-async function analisar() {
-  if (!selectedFile) return
+// ─── Fluxo ───
+function show(section) {
+  ['form','loading','location','error','report'].forEach(s => $('s-' + s).classList.add('hidden'))
+  $('s-' + section).classList.remove('hidden')
+}
 
+const steps = [
+  'Enviando imagem e lendo a poligonal',
+  'Cruzando zoneamento LPUOS e sobreposições ZEIS',
+  'Verificando Eixos, PIUs, OUCs e tombamento',
+  'Mapeando manchas de incidência sobre o lote',
+  'Calculando CA máximo real e outorga…'
+]
+
+$('btn-run').addEventListener('click', async () => {
+  if (!selectedFile) return
   show('loading')
+  let si = 0
+  const stepTimer = setInterval(() => { si = (si + 1) % steps.length; $('load-step').textContent = steps[si] }, 2500)
 
   const fd = new FormData()
   fd.append('imagem', selectedFile)
-  const end = document.getElementById('input-endereco').value.trim()
-  const sql = document.getElementById('input-sql').value.trim()
-  const coord = document.getElementById('input-coord').value.trim()
+  const end = $('f-end').value.trim(), sql = $('f-sql').value.trim(), coord = $('f-coord').value.trim()
   if (end) fd.append('endereco', end)
   if (sql) fd.append('sql', sql)
   if (coord) fd.append('coordenadas', coord)
@@ -276,190 +320,194 @@ async function analisar() {
   try {
     const res = await fetch(API_URL, { method: 'POST', body: fd })
     const data = await res.json()
-
-    if (data.status === 'localizacao_necessaria') {
-      document.getElementById('location-msg').textContent = data.mensagem
-      show('location')
-    } else if (data.status === 'erro') {
-      document.getElementById('error-msg').textContent = data.mensagem
-      show('error')
-    } else if (data.status === 'success') {
-      renderResult(data)
-      show('result')
-    } else {
-      document.getElementById('error-msg').textContent = 'Resposta inesperada do servidor.'
-      show('error')
-    }
+    clearInterval(stepTimer)
+    if (data.status === 'localizacao_necessaria') { $('location-msg').textContent = data.mensagem; show('location') }
+    else if (data.status === 'erro') { $('error-msg').textContent = data.mensagem; show('error') }
+    else if (data.status === 'success') { renderReport(data); show('report'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+    else { $('error-msg').textContent = 'Resposta inesperada do servidor.'; show('error') }
   } catch (err) {
-    document.getElementById('error-msg').textContent = 'Erro de conexão com o servidor. Verifique se a API está rodando.'
+    clearInterval(stepTimer)
+    $('error-msg').textContent = 'Erro de conexão com o servidor. Verifique se a API está rodando.'
     show('error')
   }
-}
+})
 
-function show(section) {
-  ['form','loading','location','error','result'].forEach(s => {
-    document.getElementById(s + '-section').classList.add('hidden')
-  })
-  document.getElementById(section + '-section').classList.remove('hidden')
-  document.getElementById(section + '-section').classList.add('fade-in')
-}
+// ─── Render do laudo ───
+function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function num(v, fallback){ const n = parseFloat(String(v ?? '').replace(',','.')); return isNaN(n) ? fallback : n }
 
-function voltarFormulario() { show('form') }
+function renderReport(data) {
+  const a = data.analise || {}
+  const ehis = a['3_enquadramento_ehis_ezeis'] || {}
+  const opp = a.oportunidades_incremento_ca || {}
+  const check = a['5_checklist'] || {}
+  const ov = a.overlays_mapa || {}
 
-// --- Result rendering ---
-function renderResult(data) {
-  const a = data.analise
+  const caMax = num(opp.ca_resultante_recomendado ?? ehis.ca_maximo_efetivo ?? ehis.ca_maximo_lpuos, 4)
+  const caBase = num(ehis.ca_maximo_lpuos ?? ehis.ca_basico, 1)
+  const scaleMax = Math.max(6, Math.ceil(caMax))
 
-  // Summary
-  document.getElementById('res-localizacao').textContent = a.localizacao_identificada || '—'
-  document.getElementById('res-zoneamento').textContent  = a.zoneamento_identificado  || '—'
-  document.getElementById('res-mensagem').textContent    = data.mensagem || ''
+  const outorgaObj = ehis.outorga_onerosa || {}
+  const outText = outorgaObj.situacao || opp.outorga_onerosa_total_estimada || ''
+  const isIsento = String(outText).toLowerCase().includes('isent') || String(outText).includes('R$ 0')
 
-  // Confidence badge
-  const conf = a['5_checklist']?.indice_confianca || ''
-  const confEl = document.getElementById('res-confianca')
-  const confMap = { alto:'bg-green-50 text-green-700 border border-green-200', medio:'bg-yellow-50 text-yellow-700 border border-yellow-200', baixo:'bg-red-50 text-red-700 border border-red-200' }
-  confEl.className = 'text-xs px-2 py-1 rounded-lg font-medium ' + (confMap[conf] || 'bg-slate-100 text-slate-500')
-  confEl.textContent = 'Confiança: ' + (conf || '—')
+  const pills = []
+  pills.push({ c: isIsento ? 'good' : 'neutral', t: isIsento ? 'Outorga isenta — Fs = 0' : (outText || 'Verificar outorga') })
+  if (ehis.limite_unidades_his) pills.push({ c:'neutral', t: ehis.limite_unidades_his })
+  const areaLiq = a['1_area_liquida'] || {}
+  if (areaLiq.area_bruta_estimada) pills.push({ c:'neutral', t:'Área bruta ' + areaLiq.area_bruta_estimada })
+  if (opp.alerta_urgencia) pills.push({ c:'warn', t: opp.alerta_urgencia })
 
-  // CA bar
-  const opp = a.oportunidades_incremento_ca
-  const ehis = a['3_enquadramento_ehis_ezeis']
-  const caMax = parseFloat((opp?.ca_resultante_recomendado || ehis?.ca_maximo_efetivo || ehis?.ca_maximo_lpuos || '4').replace(',','.')) || 4
-  const caBase = parseFloat((ehis?.ca_maximo_lpuos || ehis?.ca_basico || '1').replace(',','.')) || 1
-  document.getElementById('res-ca-label').textContent = 'CA ' + caMax.toFixed(1) + (caMax > caBase ? ' (base ' + caBase.toFixed(1) + ')' : '')
-  setTimeout(() => {
-    document.getElementById('res-ca-bar').style.width = Math.min((caMax / 6) * 100, 100) + '%'
-  }, 100)
+  const flags = (check.red_flags || []).map(f => {
+    const rl = String(f.risco || '').toLowerCase()
+    const sev = rl.includes('high') || rl.includes('alto') ? 'high' : rl.includes('med') ? 'medium' : 'low'
+    return `<div class="flag"><span class="sev ${sev}">${sev === 'high' ? 'alto' : sev === 'medium' ? 'médio' : 'baixo'}</span>
+      <div><b>${esc(f.tipo)}</b><span class="txt">${esc(f.descricao)}</span>
+      <div class="acao">${esc(f.acao_recomendada || f.acao || '')}</div></div></div>`
+  }).join('')
 
-  // Outorga pill
-  const outorga = ehis?.outorga_onerosa || opp
-  const outEl = document.getElementById('res-outorga')
-  const outText = (typeof outorga === 'object' ? (outorga.outorga_onerosa_total_estimada || outorga.situacao || '') : String(outorga || ''))
-  const isIsento = outText.toLowerCase().includes('isent') || outText.includes('R$ 0')
-  outEl.className = 'text-xs px-3 py-1.5 rounded-lg font-medium border ' + (isIsento ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-600 border-slate-200')
-  outEl.textContent = isIsento ? '✓ Outorga Isenta' : (outText || 'Verificar outorga')
-
-  // Max units
-  const unEl = document.getElementById('res-unidades')
-  unEl.textContent = ehis?.limite_unidades_his || 'Máx. 400 unidades HIS'
-
-  // Urgency alert (Lei 18.209/2024)
-  const urgText = opp?.alerta_urgencia
-  const urgEl = document.getElementById('res-urgencia')
-  if (urgText) { urgEl.classList.remove('hidden'); urgEl.textContent = '⏰ ' + urgText }
-
-  // Red flags
-  renderRedFlags(a['5_checklist']?.red_flags)
-
-  // Opportunities
-  renderOportunidades(opp)
-
-  // Accordions
-  const titles = {
-    '1_area_liquida':              { icon:'📐', label:'Área Líquida (FNE e Melhoramento Viário)' },
-    '2_legislacao_especifica':     { icon:'⚖️', label:'Legislação Específica (PIU / OUC)' },
-    '3_enquadramento_ehis_ezeis':  { icon:'🏗️', label:'Enquadramento EHIS / EZEIS' },
-    '4_maximizacao':               { icon:'🚀', label:'Estratégias de Maximização' },
-    '5_checklist':                 { icon:'✅', label:'Checklist GeoSampa e Conclusão' }
-  }
-  document.querySelectorAll('.accordion-block').forEach(el => {
-    const key = el.dataset.key
-    const info = titles[key]
-    const content = a[key]
-    if (!content || !info) return
-    el.innerHTML = `
-      <button onclick="toggleAccordion(this)" class="w-full flex items-center justify-between px-5 py-4 text-left">
-        <span class="text-sm font-semibold text-slate-700">${info.icon} ${info.label}</span>
-        <svg class="acc-chevron w-4 h-4 text-slate-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-        </svg>
-      </button>
-      <div class="accordion-content px-5 pb-5">
-        <div class="text-xs text-slate-500 bg-slate-50 rounded-xl p-4 font-mono leading-relaxed">
-          ${formatJSON(content)}
-        </div>
-      </div>`
-  })
-}
-
-function renderRedFlags(flags) {
-  if (!flags || !flags.length) return
-  const sec = document.getElementById('red-flags-section')
-  const list = document.getElementById('red-flags-list')
-  sec.classList.remove('hidden')
-  list.innerHTML = flags.map(f => {
-    const risk = (f.risco || f.tipo || '').toLowerCase()
-    const cls = risk.includes('high') ? 'risk-high' : risk.includes('medium') ? 'risk-medium' : 'risk-low'
-    return `<div class="opp-card cursor-default ${cls} border rounded-xl px-3 py-2 text-xs max-w-xs" title="${esc(f.acao_recomendada || f.acao || '')}">
-      <div class="font-semibold">${esc(f.tipo || '')}</div>
-      <div class="opacity-75 mt-0.5">${esc(f.descricao || '')}</div>
+  const opps = (opp.estrategias_aplicaveis || []).filter(s => s.aplicavel_a_este_lote !== false).map(s => {
+    const via = ['alta','media','baixa'].includes(s.viabilidade) ? s.viabilidade : 'media'
+    const meta = []
+    if (s.ca_resultante) meta.push(`<span class="m-ca">CA ${esc(s.ca_resultante)}</span>`)
+    if (s.custo_outorga_estimado) meta.push(`<span class="m-custo">${esc(s.custo_outorga_estimado)}</span>`)
+    if (s.prazo_critico) meta.push(`<span class="m-prazo">⏱ ${esc(s.prazo_critico)}</span>`)
+    return `<div class="opp">
+      <div class="opp-head"><b>${esc(s.mecanismo_nome || s.mecanismo_id)}</b><span class="via ${via}">${via}</span></div>
+      <div class="opp-lei">${esc(s.lei_referencia || '')}</div>
+      <div class="opp-desc">${esc(s.motivo_aplicabilidade || s.requisito_principal || '')}</div>
+      <div class="opp-meta">${meta.join('')}</div>
     </div>`
   }).join('')
-}
 
-function renderOportunidades(opp) {
-  if (!opp) return
-  const sec = document.getElementById('opp-section')
-  const list = document.getElementById('opp-list')
-  const strategies = opp.estrategias_aplicaveis || []
-  if (!strategies.length) return
-  sec.classList.remove('hidden')
+  const blockers = (opp.bloqueadores_identificados || []).map(b =>
+    `<div class="flag"><span class="sev high">bloqueio</span>
+      <div><b>${esc(b.tipo)}</b><span class="txt">${esc(b.impacto)}</span>
+      ${b.alternativa ? `<div class="acao">${esc(b.alternativa)}</div>` : ''}</div></div>`
+  ).join('')
 
-  document.getElementById('opp-combo').textContent = opp.combinacao_recomendada || ''
+  const detSections = [
+    ['Área líquida — FNE e melhoramento viário', a['1_area_liquida']],
+    ['Legislação específica — PIU / OUC', a['2_legislacao_especifica']],
+    ['Enquadramento EHIS / EZEIS', a['3_enquadramento_ehis_ezeis']],
+    ['Estratégias de maximização', a['4_maximizacao']],
+    ['Checklist GeoSampa e conclusão', a['5_checklist']]
+  ].filter(([,c]) => c).map(([t, c], i) =>
+    `<details><summary><span><span class="n">0${i+1}</span> ${esc(t)}</span></summary>
+     <div class="det-body"><pre>${esc(JSON.stringify(c, null, 2))}</pre></div></details>`
+  ).join('')
 
-  list.innerHTML = strategies.map(s => {
-    const vClass = s.viabilidade === 'alta' ? 'badge-alta' : s.viabilidade === 'media' ? 'badge-media' : 'badge-baixa'
-    const icon = s.viabilidade === 'alta' ? '✅' : s.viabilidade === 'media' ? '⚠️' : '❌'
-    const applicable = s.aplicavel_a_este_lote !== false
-    return `<div class="opp-card border rounded-xl p-3 ${applicable ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'}">
-      <div class="flex items-start gap-2">
-        <span class="text-sm">${icon}</span>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-xs font-semibold text-slate-800">${esc(s.mecanismo_nome || s.mecanismo_id || '')}</span>
-            <span class="text-xs px-1.5 py-0.5 rounded-full font-medium ${vClass}">${esc(s.viabilidade || '')}</span>
-            ${s.prazo_critico ? `<span class="text-xs bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-full">⏰ ${esc(s.prazo_critico)}</span>` : ''}
+  const conf = check.indice_confianca || ''
+  const hasOverlays = ov && ((Array.isArray(ov.terreno_poligono) && ov.terreno_poligono.length > 2) || (ov.incidencias || []).some(i => Array.isArray(i.poligono) && i.poligono.length > 2))
+
+  $('s-report').innerHTML = `
+    <div class="report-head">
+      <div class="card-eyebrow" style="margin:0;">Laudo preliminar</div>
+      <button class="ghost" id="btn-back">← Nova análise</button>
+    </div>
+
+    <div class="band">
+      <div class="band-grid">
+        <div class="band-loc">
+          <div class="eyebrow">Terreno identificado</div>
+          <div class="band-title">${esc(a.localizacao_identificada || '—')}</div>
+          <div class="chips">
+            <span class="chip hot">${esc(a.zoneamento_identificado || '—')}</span>
+            ${conf ? `<span class="chip">Confiança: ${esc(conf)}</span>` : ''}
           </div>
-          <div class="text-xs text-slate-500 mt-1">${esc(s.lei_referencia || '')} ${s.ca_resultante ? '· CA ' + esc(s.ca_resultante) : ''}</div>
-          <div class="text-xs text-slate-600 mt-1">${esc(s.motivo_aplicabilidade || s.requisito_principal || '')}</div>
-          ${s.custo_outorga_estimado ? `<div class="text-xs font-medium mt-1 ${s.custo_outorga_estimado.includes('0') || s.custo_outorga_estimado.toLowerCase().includes('isent') ? 'text-green-700' : 'text-slate-700'}">${esc(s.custo_outorga_estimado)}</div>` : ''}
+        </div>
+        <div class="ca-fig">
+          <div class="lbl">CA máximo real</div>
+          <div class="num">${caMax.toFixed(1).replace('.',',')}</div>
+          <div class="base">Base: ${caBase.toFixed(1).replace('.',',')}</div>
         </div>
       </div>
-    </div>`
-  }).join('')
+      <div class="ca-track">
+        <div class="ca-fill" id="ca-fill"></div>
+        ${caBase < caMax ? `<div class="ca-mark" style="left:${(caBase/scaleMax)*100}%"></div>` : ''}
+      </div>
+      <div class="ca-scale">${Array.from({length: scaleMax+1}, (_,i) => `<span>${i}</span>`).join('')}</div>
+      <div class="pills">${pills.map(p => `<span class="pill ${p.c}">${esc(p.t)}</span>`).join('')}</div>
+      <p class="summary">${esc(data.mensagem || '')}</p>
+    </div>
 
-  // Blockers
-  const blockers = opp.bloqueadores_identificados || []
-  if (blockers.length) {
-    document.getElementById('opp-blockers').classList.remove('hidden')
-    document.getElementById('opp-blockers-list').innerHTML = blockers.map(b =>
-      `<div class="text-xs border border-red-100 bg-red-50 rounded-lg p-2 text-red-800">
-        <span class="font-semibold">${esc(b.tipo || '')}</span>: ${esc(b.impacto || '')}
-        ${b.alternativa ? `<div class="text-red-600 mt-0.5">→ ${esc(b.alternativa)}</div>` : ''}
-      </div>`
+    ${hasOverlays ? `
+    <div class="card">
+      <div class="card-eyebrow">Manchas de incidência sobre o lote</div>
+      <div class="map-wrap"><canvas id="map-canvas"></canvas></div>
+      <div class="legend" id="map-legend"></div>
+      ${ov.observacao ? `<div class="map-note">${esc(ov.observacao)}</div>` : ''}
+    </div>` : ''}
+
+    ${flags ? `<div class="card"><div class="card-eyebrow">Red flags</div>${flags}</div>` : ''}
+
+    ${opps || blockers ? `<div class="card">
+      <div class="card-eyebrow">Oportunidades de incremento de CA</div>
+      ${opps}
+      ${blockers ? `<div style="margin-top:16px;">${blockers}</div>` : ''}
+      ${opp.combinacao_recomendada ? `<div class="combo"><b>Combinação recomendada:</b> ${esc(opp.combinacao_recomendada)}</div>` : ''}
+    </div>` : ''}
+
+    <div class="card-eyebrow" style="margin:26px 0 14px;">Detalhamento técnico</div>
+    ${detSections}
+  `
+
+  $('btn-back').addEventListener('click', () => show('form'))
+  requestAnimationFrame(() => { $('ca-fill').style.width = Math.min((caMax/scaleMax)*100, 100) + '%' })
+
+  if (hasOverlays) drawOverlays(ov)
+}
+
+// ─── Canvas: imagem enviada + manchas de incidência ───
+function drawOverlays(ov) {
+  const canvas = $('map-canvas')
+  if (!canvas || !uploadedImage) return
+
+  const render = () => {
+    const W = uploadedImage.naturalWidth, H = uploadedImage.naturalHeight
+    canvas.width = W; canvas.height = H
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(uploadedImage, 0, 0)
+
+    const legend = []
+
+    if (Array.isArray(ov.terreno_poligono) && ov.terreno_poligono.length > 2) {
+      drawPoly(ctx, ov.terreno_poligono, W, H, TERRENO_STYLE.fill, TERRENO_STYLE.stroke, Math.max(3, W/300), [])
+      legend.push({ fill: TERRENO_STYLE.fill, stroke: TERRENO_STYLE.stroke, label: 'Poligonal do terreno' })
+    }
+
+    for (const inc of (ov.incidencias || [])) {
+      if (!Array.isArray(inc.poligono) || inc.poligono.length < 3) continue
+      const st = OVERLAY_STYLES[inc.tipo] || OVERLAY_STYLES.outro
+      drawPoly(ctx, inc.poligono, W, H, st.fill, st.stroke, Math.max(2, W/400), [8, 6])
+      legend.push({ fill: st.fill, stroke: st.stroke, label: inc.rotulo || st.label })
+    }
+
+    $('map-legend').innerHTML = legend.map(l =>
+      `<span class="legend-item"><span class="legend-swatch" style="background:${l.fill};border-color:${l.stroke}"></span>${esc(l.label)}</span>`
     ).join('')
   }
+
+  if (uploadedImage.complete) render()
+  else uploadedImage.onload = render
 }
 
-function toggleAccordion(btn) {
-  const content = btn.nextElementSibling
-  const chevron = btn.querySelector('.acc-chevron')
-  content.classList.toggle('open')
-  chevron.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : ''
+function drawPoly(ctx, pts, W, H, fill, stroke, lw, dash) {
+  ctx.save()
+  ctx.beginPath()
+  pts.forEach(([x, y], i) => {
+    const px = x * W, py = y * H
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
+  })
+  ctx.closePath()
+  ctx.fillStyle = fill
+  ctx.fill()
+  ctx.setLineDash(dash)
+  ctx.lineWidth = lw
+  ctx.strokeStyle = stroke
+  ctx.stroke()
+  ctx.restore()
 }
-
-function formatJSON(obj) {
-  return JSON.stringify(obj, null, 2)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"([^"]+)":/g, '<span class="text-indigo-700 font-semibold">"$1":</span>')
-    .replace(/"(true|false)"/g, '<span class="text-green-600">"$1"</span>')
-    .replace(/: (true|false)/g, ': <span class="text-green-600">$1</span>')
-    .replace(/: (\d+\.?\d*)/g, ': <span class="text-orange-600">$1</span>')
-    .replace(/"([^"<>]+)"(?=[,\n\]])/g, '<span class="text-slate-700">"$1"</span>')
-}
-
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 </script>
 </body>
 </html>

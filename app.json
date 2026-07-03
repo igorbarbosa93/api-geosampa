@@ -1,0 +1,15 @@
+{
+  "name": "viaSP — Simulador de Viabilidade Urbanística",
+  "description": "Simulador de viabilidade urbanística EHIS/EZEIS para São Paulo com análise de mapa por IA (Claude) e manchas de incidência sobre o lote.",
+  "repository": "https://github.com/igorbarbosa93/api-geosampa",
+  "keywords": ["geosampa", "his", "ehis", "ezeis", "urbanismo", "sao-paulo", "claude"],
+  "env": {
+    "ANTHROPIC_API_KEY": {
+      "description": "Chave da API Anthropic (console.anthropic.com) usada para a análise de imagem por IA.",
+      "required": true
+    }
+  },
+  "formation": {
+    "web": { "quantity": 1 }
+  }
+}

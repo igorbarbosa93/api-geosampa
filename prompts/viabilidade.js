@@ -20,6 +20,13 @@ Com base na BASE DE CONHECIMENTO acima, identifique TODOS os mecanismos aplicáv
 
 ATENÇÃO ESPECIAL — Lei 18.209/2024 (prazo 31/12/2025): se o lote está em PIU ou OUC, alertar que EHIS/EZEIS protocolados até 31/12/2025 não consomem estoque de potencial construtivo — janela de oportunidade urgente.
 
+INSTRUÇÃO SOBRE OVERLAYS VISUAIS (manchas de incidência sobre a imagem):
+Além da análise textual, você DEVE retornar a geometria aproximada das incidências sobre a imagem enviada, no campo "overlays_mapa". Use coordenadas NORMALIZADAS entre 0 e 1, onde [0,0] é o canto superior esquerdo da imagem e [1,1] o canto inferior direito. Cada polígono é uma lista ordenada de vértices [x,y]. Regras:
+- "terreno_poligono": contorne a poligonal do terreno visível na imagem (4 a 12 vértices).
+- "incidencias": para CADA restrição espacial identificável na imagem (córrego/APP, melhoramento viário/alargamento, linha de transmissão, ferrovia, área de ambiência de tombamento), desenhe a mancha da faixa que INCIDE SOBRE O LOTE (a interseção aproximada, não a faixa inteira da cidade).
+- Se a imagem não permitir localizar uma incidência com razoável precisão, NÃO invente geometria: retorne a incidência com "poligono": null e explique em "descricao".
+- Se nenhuma incidência espacial for identificável, retorne "incidencias": [].
+
 QUANDO A LOCALIZAÇÃO FOR IDENTIFICADA, retorne o seguinte JSON completo com as 6 seções de análise:
 
 {
@@ -45,6 +52,19 @@ QUANDO A LOCALIZAÇÃO FOR IDENTIFICADA, retorne o seguinte JSON completo com as
       ],
       "area_liquida_estimada": "string com área líquida após deduções em m²",
       "observacoes": "string com ressalvas e camadas GeoSampa a verificar"
+    },
+    "overlays_mapa": {
+      "terreno_poligono": [[0.0, 0.0]],
+      "incidencias": [
+        {
+          "tipo": "string: app_corrego | melhoramento_viario | linha_transmissao | ferrovia | tombamento_ambiencia | outro",
+          "rotulo": "string curto para a legenda — ex: 'APP córrego 30m', 'Alargamento viário'",
+          "poligono": [[0.0, 0.0]],
+          "reducao_area_m2": "string com área aproximada da mancha sobre o lote, ou null",
+          "descricao": "string explicando a incidência e o grau de precisão da geometria"
+        }
+      ],
+      "observacao": "string sobre a confiabilidade das geometrias — sempre recomendar confirmação no GeoSampa"
     },
     "2_legislacao_especifica": {
       "piu": {
