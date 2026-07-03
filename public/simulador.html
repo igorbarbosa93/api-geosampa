@@ -322,7 +322,13 @@ $('btn-run').addEventListener('click', async () => {
     const data = await res.json()
     clearInterval(stepTimer)
     if (data.status === 'localizacao_necessaria') { $('location-msg').textContent = data.mensagem; show('location') }
-    else if (data.status === 'erro') { $('error-msg').textContent = data.mensagem; show('error') }
+    else if (data.status === 'erro') {
+      let msg = data.mensagem
+      if (String(msg).includes('ANTHROPIC_API_KEY')) {
+        msg = 'O servidor ainda não tem a chave da IA configurada. Administrador: no painel do Render, abra Environment → Add Environment Variable → ANTHROPIC_API_KEY com a chave obtida em console.anthropic.com, salve e aguarde o redeploy (~2 min).'
+      }
+      $('error-msg').textContent = msg; show('error')
+    }
     else if (data.status === 'success') { renderReport(data); show('report'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
     else { $('error-msg').textContent = 'Resposta inesperada do servidor.'; show('error') }
   } catch (err) {
