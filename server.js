@@ -13,6 +13,7 @@ const router = jsonServer.router(views)
 const middlewares = jsonServer.defaults()
 const port = process.env.PORT || 3000
 
+server.get('/', (req, res) => res.redirect('/simulador.html'))
 server.use(middlewares)
 server.post(`/${version}/viabilidade`, upload.single('imagem'), viabilidadeHandler)
 server.use(`/${version}`, router)

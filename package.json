@@ -9,18 +9,22 @@
 	"scripts": {
 		"docs:dev": "cross-env BASE_URL=http://localhost:3000/ vuepress dev doc",
 		"docs:build": "vuepress build doc",
-		"start": "vuepress build doc && node server.js",
+		"start": "node server.js",
+		"start:docs": "vuepress build doc && node server.js",
 		"dev": "cross-env BASE_URL=http://localhost:3000/ nodemon server.js"
+	},
+	"engines": {
+		"node": ">=18"
 	},
 	"author": "Thomas Yuba <yubathom@gmail.com>",
 	"license": "GPL-3.0-or-later",
 	"dependencies": {
-		"vuepress": "^0.14.10",
 		"json-server": "^0.12.1",
 		"@anthropic-ai/sdk": "^0.39.0",
 		"multer": "^1.4.5-lts.2"
 	},
 	"devDependencies": {
+		"vuepress": "^0.14.10",
 		"cross-env": "^5.2.0"
 	}
 }

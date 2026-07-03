@@ -3,7 +3,7 @@ services:
     name: viasp-simulador
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install --omit=dev
     startCommand: node server.js
     envVars:
       - key: ANTHROPIC_API_KEY
