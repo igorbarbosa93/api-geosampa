@@ -3,11 +3,24 @@ const { buildSystemPrompt, buildUserMessage } = require('../prompts/viabilidade'
 
 const SUPPORTED_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
-function getClient() {
-  if (!process.env.ANTHROPIC_API_KEY) {
+function getApiKey() {
+  const raw = process.env.ANTHROPIC_API_KEY
+  if (!raw) {
     throw new Error('ANTHROPIC_API_KEY não configurada no ambiente.')
   }
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  // Remove espaços, quebras de linha e aspas acidentais da colagem
+  const key = raw.trim().replace(/^["']+|["']+$/g, '')
+  if (!key.startsWith('sk-ant-')) {
+    throw new Error('ANTHROPIC_API_KEY inválida: a chave deve começar com "sk-ant-". Gere uma nova em console.anthropic.com → API Keys e cole o valor completo, sem aspas.')
+  }
+  if (key.startsWith('sk-ant-admin')) {
+    throw new Error('ANTHROPIC_API_KEY inválida: essa é uma chave de administrador (sk-ant-admin...), que não serve para análises. Gere uma chave de API padrão em console.anthropic.com → API Keys.')
+  }
+  return key
+}
+
+function getClient() {
+  return new Anthropic({ apiKey: getApiKey() })
 }
 
 async function analyzeViability(imageBuffer, mediaType, extras = {}) {

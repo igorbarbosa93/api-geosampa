@@ -323,9 +323,11 @@ $('btn-run').addEventListener('click', async () => {
     clearInterval(stepTimer)
     if (data.status === 'localizacao_necessaria') { $('location-msg').textContent = data.mensagem; show('location') }
     else if (data.status === 'erro') {
-      let msg = data.mensagem
-      if (String(msg).includes('ANTHROPIC_API_KEY')) {
+      let msg = String(data.mensagem || '')
+      if (msg.includes('ANTHROPIC_API_KEY não configurada')) {
         msg = 'O servidor ainda não tem a chave da IA configurada. Administrador: no painel do Render, abra Environment → Add Environment Variable → ANTHROPIC_API_KEY com a chave obtida em console.anthropic.com, salve e aguarde o redeploy (~2 min).'
+      } else if (msg.includes('invalid x-api-key') || msg.includes('authentication_error')) {
+        msg = 'A chave da IA configurada no servidor foi recusada (401 — invalid x-api-key). Administrador: gere uma NOVA chave em console.anthropic.com → API Keys → Create Key, copie o valor completo (começa com sk-ant-api...) e substitua no Render em Environment → ANTHROPIC_API_KEY, sem aspas nem espaços. Salve e aguarde o redeploy.'
       }
       $('error-msg').textContent = msg; show('error')
     }
