@@ -34,7 +34,7 @@ async function analyzeViability(imageBuffer, mediaType, extras = {}) {
 
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
-    max_tokens: 8096,
+    max_tokens: 20000,
     system: [
       {
         type: 'text',
@@ -45,11 +45,22 @@ async function analyzeViability(imageBuffer, mediaType, extras = {}) {
     messages: [{ role: 'user', content: userContent }]
   })
 
-  const text = response.content[0].text.trim()
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error('O laudo excedeu o tamanho máximo de resposta. Tente novamente com uma imagem mais simples ou informe o endereço/SQL para reduzir a análise.')
+  }
+
+  let text = (response.content.find(b => b.type === 'text')?.text || '').trim()
+
+  // Remove cercas de markdown e texto fora do objeto JSON
+  text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '')
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start >= 0 && end > start) text = text.slice(start, end + 1)
 
   try {
     return JSON.parse(text)
   } catch {
+    console.error('[viabilidade] Resposta não-JSON da IA (inicio):', text.slice(0, 500))
     throw new Error('Resposta da IA não é JSON válido. Tente novamente.')
   }
 }
