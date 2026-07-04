@@ -204,6 +204,20 @@ function buildUserMessage(base64Image, mediaType, extras = {}) {
   if (extras.sql) textParts.push(`SQL (Setor-Quadra-Lote) fornecido: ${extras.sql}`)
   if (extras.coordenadas) textParts.push(`Coordenadas fornecidas: ${extras.coordenadas}`)
 
+  if (extras.contexto) {
+    textParts.push(`
+===== DADOS OFICIAIS CONFIRMADOS (triangulação GeoSampa WMS + cálculo determinístico) =====
+${JSON.stringify(extras.contexto, null, 1)}
+===== FIM DOS DADOS OFICIAIS =====
+
+INSTRUÇÃO CRÍTICA SOBRE OS DADOS OFICIAIS:
+- Estes dados vêm das camadas oficiais do GeoSampa consultadas no ponto exato do lote e do cálculo determinístico sobre a base legal. São a FONTE PRIMÁRIA.
+- NÃO especule zoneamento diferente do campo "zona". NÃO recalcule o CA de forma divergente de "parametros_calculados" — use ca_maximo_aplicavel como o CA máximo real do laudo.
+- Se "bonus_aplicado" existe, o CA com bônus JÁ está em ca_maximo_aplicavel. Se "bonus_bloqueado" existe, explique o bloqueio no laudo.
+- Campos null significam "camada indisponível na consulta" — apenas nesses pontos recomende verificação manual, sem especular.
+- Com zona confirmada, "indice_confianca" deve ser "alto". Sua tarefa é interpretar e estrategizar sobre estes fatos, não redescobri-los.`)
+  }
+
   content.push({ type: 'text', text: textParts.join('\n') })
 
   return content

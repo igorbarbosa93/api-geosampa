@@ -90,4 +90,127 @@ async function lote(req, res) {
   }
 }
 
-module.exports = { busca, lote }
+// ─── Triangulação de zoneamento ───
+// Consulta as camadas oficiais no ponto e cruza com a base da legislação
+// para calcular o CA de forma determinística (sem especulação da IA).
+
+const LEGISLACAO = require('../prompts/legislacao-his')
+
+// Candidatos de nome de camada (o GeoServer da PMSP muda nomenclatura);
+// o primeiro que responder com feature é memorizado.
+const LAYER_CANDIDATES = {
+  zona: (process.env.GEOSAMPA_ZONA_LAYERS ||
+    'geoportal:zoneamento_2016,geoportal:zoneamento,geoportal:zona_uso,geoportal:LEI17402_zoneamento').split(','),
+  eixo: (process.env.GEOSAMPA_EIXO_LAYERS ||
+    'geoportal:eixos_area_influencia,geoportal:area_influencia_eixos,geoportal:eixo_estruturacao').split(','),
+  operacao: (process.env.GEOSAMPA_OU_LAYERS ||
+    'geoportal:operacao_urbana,geoportal:operacoes_urbanas,geoportal:piu_perimetro').split(','),
+  tombamento: (process.env.GEOSAMPA_TOMB_LAYERS ||
+    'geoportal:tombamento,geoportal:bens_tombados,geoportal:zepec').split(',')
+}
+const layerCache = {}
+
+async function featureAtPoint(kind, lat, lng) {
+  const d = 0.0004
+  const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
+  const candidates = layerCache[kind] ? [layerCache[kind]] : LAYER_CANDIDATES[kind]
+  for (const layer of candidates) {
+    try {
+      const params = new URLSearchParams({
+        service: 'WMS', version: '1.1.1', request: 'GetFeatureInfo',
+        layers: layer.trim(), query_layers: layer.trim(), styles: '',
+        bbox, srs: 'EPSG:4326', width: '101', height: '101', x: '50', y: '50',
+        info_format: 'application/json', feature_count: '3'
+      })
+      const data = await fetchJson(`${GEOSAMPA_WMS}?${params}`, 8000)
+      layerCache[kind] = layer.trim()
+      const feat = (data.features || [])[0]
+      return feat ? (feat.properties || {}) : null
+    } catch { /* tenta o próximo candidato */ }
+  }
+  return undefined // camada indisponível (≠ null, que significa "sem feature no ponto")
+}
+
+function extrairSigla(props) {
+  if (!props) return null
+  const cand = props.zl_zona || props.zona || props.sigla || props.tx_zona ||
+    props.cd_zona || props.nm_zona || props.layer || null
+  if (!cand) return null
+  return String(cand).toUpperCase().replace(/\s+/g, '-').replace('ZEIS', 'ZEIS-').replace('ZEIS--', 'ZEIS-').replace(/-+$/, '')
+}
+
+// Cálculo determinístico do CA a partir da base jurídica
+function calcularParametros(sigla, emEixo, temTombamento) {
+  if (!sigla) return null
+  const norm = sigla.replace(/^ZEIS-?(\d)$/, 'ZEIS-$1')
+  const zeis = LEGISLACAO.zeis[norm]
+  const zona = LEGISLACAO.zonas_uso[norm]
+  const base = zeis || zona
+  if (!base) return { sigla: norm, nota: 'Zona fora da base de parâmetros — verificar Quadro 3 LPUOS' }
+
+  const p = {
+    sigla: norm,
+    fonte: zeis ? 'Base ZEIS (Lei 16.402/2016 + Lei 17.975/2023 + Dec. 63.728/2024)' : 'Quadro 3 LPUOS',
+    ca_basico: base.ca_basico,
+    ca_maximo_zona: base.ca_maximo,
+    to_maxima: base.to_maxima || base.to_max || null,
+    gabarito: base.gabarito || null,
+    his_percentual_minimo: base.his_percentual_minimo || null,
+    em_eixo: emEixo === true,
+    tombamento_no_lote: temTombamento === true
+  }
+
+  // Bônus Lei 17.975/2023: ZEIS-2/3/5 em Eixo, sem tombamento → +50%
+  const elegivel = ['ZEIS-2', 'ZEIS-3', 'ZEIS-5'].includes(norm)
+  if (elegivel && emEixo === true && temTombamento !== true) {
+    p.ca_maximo_aplicavel = base.ca_maximo_em_eixo || base.ca_maximo * 1.5
+    p.bonus_aplicado = 'Lei 17.975/2023: +50% (ZEIS em área de influência de Eixo, sem tombamento)'
+  } else {
+    p.ca_maximo_aplicavel = base.ca_maximo
+    if (elegivel && temTombamento === true) p.bonus_bloqueado = 'Bônus +50% BLOQUEADO por tombamento/ZEPEC no lote'
+    else if (elegivel && emEixo !== true) p.bonus_nao_aplicado = 'Fora de área de influência de Eixo — sem bônus +50%'
+  }
+
+  p.outorga = zeis ? 'ISENTA — Fs=0 (Decreto 63.728/2024)' :
+    'EHIS (≥80% HIS): ISENTA — Fs=0; demais usos: outorga padrão'
+  return p
+}
+
+// GET /v1/geosampa/contexto?lat=&lng=
+async function contexto(req, res) {
+  const lat = parseFloat(req.query.lat)
+  const lng = parseFloat(req.query.lng)
+  if (isNaN(lat) || isNaN(lng)) {
+    return res.status(400).json({ status: 'erro', mensagem: 'Parâmetros lat e lng são obrigatórios.' })
+  }
+
+  const [zonaProps, eixoProps, ouProps, tombProps] = await Promise.all([
+    featureAtPoint('zona', lat, lng),
+    featureAtPoint('eixo', lat, lng),
+    featureAtPoint('operacao', lat, lng),
+    featureAtPoint('tombamento', lat, lng)
+  ])
+
+  const sigla = extrairSigla(zonaProps)
+  const emEixo = eixoProps === undefined ? null : (eixoProps !== null)
+  const temTomb = tombProps === undefined ? null : (tombProps !== null)
+  const operacao = ouProps ? (ouProps.nm_operacao || ouProps.nome || ouProps.tx_nome || 'Operação urbana identificada') : (ouProps === null ? null : undefined)
+
+  const parametros = calcularParametros(sigla, emEixo === true, temTomb === true)
+
+  res.json({
+    status: 'success',
+    triangulacao: {
+      zona: sigla || (zonaProps === undefined ? 'camada indisponível' : 'não identificada no ponto'),
+      zona_propriedades: zonaProps || null,
+      em_area_influencia_eixo: emEixo,
+      operacao_urbana: operacao === undefined ? 'camada indisponível' : operacao,
+      tombamento_no_ponto: temTomb,
+      parametros_calculados: parametros,
+      fonte: 'GeoSampa WMS (GetFeatureInfo) + base legislação 2016-2025',
+      ressalva: 'Confirmação documental obrigatória: Ficha Técnica do lote (SQL) na SMUL e certidões — camadas WMS podem ter defasagem de publicação'
+    }
+  })
+}
+
+module.exports = { busca, lote, contexto }

@@ -414,25 +414,40 @@ map.on('click', async e => {
   $('sel-meta').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`
 
   try {
-    const res = await fetch(`${API}/geosampa/lote?lat=${lat}&lng=${lng}`)
-    const data = await res.json()
+    const [loteRes, ctxRes] = await Promise.all([
+      fetch(`${API}/geosampa/lote?lat=${lat}&lng=${lng}`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/geosampa/contexto?lat=${lat}&lng=${lng}`).then(r => r.json()).catch(() => null)
+    ])
+    const data = loteRes || {}
+    const tri = ctxRes && ctxRes.status === 'success' ? ctxRes.triangulacao : null
+    const coords = `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+
     if (data.status === 'success') {
-      selecao = { sql: data.sql, endereco: data.endereco || ultimoEndereco, coordenadas: `${lat.toFixed(6)}, ${lng.toFixed(6)}` }
+      selecao = { sql: data.sql, endereco: data.endereco || ultimoEndereco, coordenadas: coords, contexto: tri }
       $('sel-eyebrow').textContent = 'Lote identificado no cadastro'
       $('sel-sql').textContent = data.sql ? `SQL ${data.sql}` : 'SQL não informado na camada'
-      $('sel-meta').textContent = [data.endereco, data.area_m2 ? `≈ ${data.area_m2} m²` : null, selecao.coordenadas].filter(Boolean).join(' · ')
       if (data.geometria) {
         selPoly = L.geoJSON(data.geometria, { style: { color: '#D8232A', weight: 3, fillColor: '#D8232A', fillOpacity: .12 } }).addTo(map)
         try { map.fitBounds(selPoly.getBounds(), { maxZoom: 18, padding: [30, 30] }) } catch {}
       }
     } else {
-      selecao = { sql: null, endereco: ultimoEndereco, coordenadas: `${lat.toFixed(6)}, ${lng.toFixed(6)}` }
+      selecao = { sql: null, endereco: ultimoEndereco, coordenadas: coords, contexto: tri }
       $('sel-eyebrow').textContent = data.status === 'vazio' ? 'Nenhum lote neste ponto' : 'Cadastro indisponível'
       $('sel-sql').textContent = 'Analisar pelas coordenadas'
-      $('sel-meta').textContent = (data.mensagem || '') + ' · ' + selecao.coordenadas
     }
+
+    // Triangulação: zona oficial + CA calculado no painel
+    const metaParts = [data.endereco, data.area_m2 ? `≈ ${data.area_m2} m²` : null]
+    if (tri && tri.parametros_calculados && tri.parametros_calculados.ca_maximo_aplicavel) {
+      const p = tri.parametros_calculados
+      metaParts.unshift(`ZONA ${p.sigla} · CA ${String(p.ca_maximo_aplicavel).replace('.',',')}${p.bonus_aplicado ? ' (bônus Eixo)' : ''} · ${p.outorga.split('—')[0].trim()}`)
+    } else if (tri && tri.zona && !String(tri.zona).includes('indisponível')) {
+      metaParts.unshift(`ZONA ${tri.zona}`)
+    }
+    metaParts.push(coords)
+    $('sel-meta').textContent = metaParts.filter(Boolean).join(' · ')
   } catch {
-    selecao = { sql: null, endereco: ultimoEndereco, coordenadas: `${lat.toFixed(6)}, ${lng.toFixed(6)}` }
+    selecao = { sql: null, endereco: ultimoEndereco, coordenadas: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, contexto: null }
     $('sel-eyebrow').textContent = 'Cadastro indisponível'
     $('sel-sql').textContent = 'Analisar pelas coordenadas'
     $('sel-meta').textContent = selecao.coordenadas
@@ -448,7 +463,7 @@ $('btn-limpar').addEventListener('click', () => {
 
 $('btn-analisar-lote').addEventListener('click', () => {
   if (!selecao) return
-  analisar({ sql: selecao.sql, endereco: selecao.endereco, coordenadas: selecao.coordenadas })
+  analisar({ sql: selecao.sql, endereco: selecao.endereco, coordenadas: selecao.coordenadas, contexto: selecao.contexto })
 })
 
 // ═══ Upload alternativo ═══
@@ -500,6 +515,7 @@ async function analisar(input) {
   if (input.endereco) fd.append('endereco', input.endereco)
   if (input.sql) fd.append('sql', input.sql)
   if (input.coordenadas) fd.append('coordenadas', input.coordenadas)
+  if (input.contexto) fd.append('contexto', JSON.stringify(input.contexto))
 
   try {
     const res = await fetch(`${API}/viabilidade`, { method: 'POST', body: fd })

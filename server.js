@@ -19,6 +19,7 @@ server.get('/', (req, res) => res.redirect('/simulador.html'))
 server.use(middlewares)
 server.get(`/${version}/geosampa/busca`, geosampa.busca)
 server.get(`/${version}/geosampa/lote`, geosampa.lote)
+server.get(`/${version}/geosampa/contexto`, geosampa.contexto)
 server.post(`/${version}/viabilidade`, upload.single('imagem'), viabilidadeHandler)
 server.use(`/${version}`, router)
 
