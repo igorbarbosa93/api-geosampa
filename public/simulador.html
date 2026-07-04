@@ -588,7 +588,6 @@ function renderReport(data) {
     ['Área líquida — FNE e melhoramento viário', a['1_area_liquida']],
     ['Legislação específica — PIU / OUC', a['2_legislacao_especifica']],
     ['Enquadramento EHIS / EZEIS', a['3_enquadramento_ehis_ezeis']],
-    ['Estratégias de maximização', a['4_maximizacao']],
     ['Checklist GeoSampa e conclusão', a['5_checklist']]
   ].filter(([,c]) => c).map(([t, c], i) =>
     `<details class="det"><summary><span><span class="n">0${i+1}</span> ${esc(t)}</span></summary>

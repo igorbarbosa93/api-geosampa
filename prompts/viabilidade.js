@@ -34,7 +34,7 @@ Além da análise textual, você DEVE retornar a geometria aproximada das incid�
 - Se a imagem não permitir localizar uma incidência com razoável precisão, NÃO invente geometria: retorne a incidência com "poligono": null e explique em "descricao".
 - Se nenhuma incidência espacial for identificável, retorne "incidencias": [].
 
-QUANDO A LOCALIZAÇÃO FOR IDENTIFICADA, retorne o seguinte JSON completo com as 6 seções de análise:
+QUANDO A LOCALIZAÇÃO FOR IDENTIFICADA, retorne o seguinte JSON completo com as 5 seções de análise (as estratégias de maximização — fruição pública, fachada ativa, áreas não computáveis, TPC — entram como mecanismos em "oportunidades_incremento_ca", não como seção separada):
 
 {
   "status": "success",
@@ -149,38 +149,6 @@ QUANDO A LOCALIZAÇÃO FOR IDENTIFICADA, retorne o seguinte JSON completo com as
       "ca_resultante_recomendado": "string — CA final após combinação recomendada",
       "outorga_onerosa_total_estimada": "string — custo total estimado (R$ ou 'isento')",
       "alerta_urgencia": "string ou null — alertar sobre prazos críticos como Lei 18.209/2024 (31/12/2025)"
-    },
-    "4_maximizacao": {
-      "fruicao_publica": {
-        "aplicavel": "boolean",
-        "beneficio": "string descrevendo impacto no projeto: +10% de CA e dispensa de recuo frontal (Art. 67 LPUOS)",
-        "requisito": "string — faixa mín. 3m, testada mín. 10m, acesso público 24h",
-        "impacto_recuos": "string — como a fruição pública afeta os recuos e a implantação"
-      },
-      "fachada_ativa": {
-        "aplicavel": "boolean",
-        "regra": "string — mínimo 50% da testada com uso nR ativo; pé-direito 4,5m; vedado garagem (Art. 69 LPUOS)",
-        "isencao_ca": "string — área do térreo com FA não computa no CA",
-        "restricao_garagem": "string — garagem proibida nas testadas com fachada ativa"
-      },
-      "areas_nao_computaveis": {
-        "decreto_base": "63.728/2024",
-        "itens": [
-          "Varandas: até 8m² por unidade ou 12% da área privativa útil (o menor)",
-          "Áreas técnicas (barrilete, casa de máquinas, reservatório): 100% não computa",
-          "Circulação vertical (escadas, elevadores, halls): 100% não computa",
-          "Circulação horizontal comum (corredores): 100% não computa",
-          "Lazer coletivo (salão de festas, academia, playground, piscina): 100% não computa",
-          "Área de serviço comunitário: 100% não computa",
-          "Subsolo (garagem): não computa se abaixo do nível natural do lote"
-        ],
-        "observacoes": "string com impacto estimado na área total construída para este lote"
-      },
-      "tpc_receptor": {
-        "oportunidade_identificada": "boolean — true se há imóveis tombados no entorno que podem ser doadores",
-        "descricao": "string — como o lote pode ser receptor de TPC de imóvel tombado próximo, superando CA máximo em até 30%",
-        "lei": "Art. 116-A a 116-F LPUOS + Art. 123-128 PDE"
-      }
     },
     "5_checklist": {
       "camadas_geosamba_obrigatorias": [
