@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Simulador de Viabilidade Urbanística — SP</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{
     color-scheme: light;
@@ -26,51 +28,81 @@
   body{ font-family:var(--ff); background:var(--base); color:var(--hi); font-size:14px; line-height:1.5; }
   ::-webkit-scrollbar{ width:5px; } ::-webkit-scrollbar-track{ background:var(--raised); } ::-webkit-scrollbar-thumb{ background:var(--verm); border-radius:3px; }
 
-  .hero{ position:relative; background:linear-gradient(160deg,#0F172A 0%,#1E293B 55%,#0F172A 100%); padding:44px 40px 40px; overflow:hidden; }
+  .hero{ position:relative; background:linear-gradient(160deg,#0F172A 0%,#1E293B 55%,#0F172A 100%); padding:32px 40px 28px; overflow:hidden; }
   .hero::before{ content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--verm) 0%,var(--amber) 100%); z-index:2; }
   .hero::after{ content:''; position:absolute; right:-120px; top:-80px; width:380px; height:380px; border-radius:50%; background:radial-gradient(circle,rgba(216,35,42,.14) 0%,transparent 65%); }
-  .hero-in{ max-width:880px; margin:0 auto; position:relative; z-index:3; }
-  .hero-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; flex-wrap:wrap; gap:10px; }
+  .hero-in{ max-width:960px; margin:0 auto; position:relative; z-index:3; }
+  .hero-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
   .hero-wordmark{ font-size:15px; font-weight:900; letter-spacing:-.3px; color:#F8FAFC; }
   .hero-wordmark span{ color:var(--verm); }
   .hero-badge{ font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#CBD5E1; border:1px solid rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; background:rgba(15,23,42,.5); }
-  .eyebrow{ font-size:10px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--verm); margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+  .eyebrow{ font-size:10px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--verm); margin-bottom:10px; display:flex; align-items:center; gap:10px; }
   .eyebrow::before{ content:''; width:24px; height:2px; background:var(--verm); flex-shrink:0; }
-  .hero-title{ font-size:clamp(26px,4.5vw,42px); font-weight:900; line-height:1.05; letter-spacing:-.8px; color:#F8FAFC; margin-bottom:12px; text-wrap:balance; }
+  .hero-title{ font-size:clamp(22px,3.5vw,32px); font-weight:900; line-height:1.05; letter-spacing:-.6px; color:#F8FAFC; margin-bottom:8px; text-wrap:balance; }
   .hero-title .accent{ color:var(--verm); }
-  .hero-desc{ font-size:13.5px; color:#CBD5E1; max-width:480px; line-height:1.7; }
+  .hero-desc{ font-size:13px; color:#CBD5E1; max-width:560px; line-height:1.6; }
 
-  .wrap{ max-width:880px; margin:0 auto; padding:0 20px 64px; }
+  .wrap{ max-width:960px; margin:0 auto; padding:0 20px 64px; }
 
-  .card{ background:var(--surf); border:1px solid var(--border); border-radius:var(--r); padding:26px; margin-bottom:16px; box-shadow:var(--shadow); margin-top:20px; }
+  .card{ background:var(--surf); border:1px solid var(--border); border-radius:var(--r); padding:22px; margin-bottom:16px; box-shadow:var(--shadow); margin-top:20px; }
   .card-eyebrow{ font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--verm); display:flex; align-items:center; gap:10px; margin-bottom:14px; }
   .card-eyebrow::before{ content:''; width:20px; height:2px; background:var(--verm); flex-shrink:0; }
-  .card h2{ font-size:19px; font-weight:800; letter-spacing:-.4px; margin-bottom:4px; }
-  .card .sub{ font-size:13px; color:var(--sub); margin-bottom:22px; max-width:60ch; }
 
-  .drop{ border:1.5px dashed var(--border2); border-radius:var(--r); padding:36px 20px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:22px; background:var(--base); }
+  /* ═══ Busca + Mapa ═══ */
+  .search-row{ display:flex; gap:10px; position:relative; margin-bottom:12px; }
+  .search-row input{ flex:1; font-size:14px; font-family:var(--ff); padding:12px 14px; border:1px solid var(--border); border-radius:var(--r); background:var(--surf); color:var(--hi); }
+  .search-row input:focus{ outline:none; border-color:var(--verm); box-shadow:0 0 0 3px var(--verm-l); }
+  .search-row input::placeholder{ color:var(--muted); }
+  .search-row button{ padding:12px 22px; font-size:12px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#fff; background:var(--verm); border:none; border-radius:var(--r); cursor:pointer; font-family:var(--ff); }
+  .search-row button:hover{ background:#B91C22; }
+  .search-results{ position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--surf); border:1px solid var(--border2); border-radius:var(--r); box-shadow:var(--shadow-md); z-index:1500; max-height:240px; overflow-y:auto; }
+  .search-results button{ display:block; width:100%; text-align:left; padding:11px 14px; font-size:13px; color:var(--mid); background:none; border:none; border-bottom:1px solid var(--raised); cursor:pointer; font-family:var(--ff); text-transform:none; letter-spacing:0; font-weight:500; }
+  .search-results button:last-child{ border-bottom:none; }
+  .search-results button:hover{ background:var(--verm-l); color:var(--hi); }
+
+  .map-shell{ position:relative; border-radius:var(--r); overflow:hidden; border:1px solid var(--border); }
+  #map{ height:440px; width:100%; background:var(--raised); }
+  .map-controls{ position:absolute; top:12px; right:12px; z-index:1000; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+  .layer-toggle{ display:flex; background:rgba(15,23,42,.85); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-md); }
+  .layer-toggle button{ padding:8px 14px; font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#CBD5E1; background:none; border:none; cursor:pointer; font-family:var(--ff); }
+  .layer-toggle button.active{ background:var(--verm); color:#fff; }
+  .lote-toggle{ display:flex; align-items:center; gap:8px; background:rgba(15,23,42,.85); border-radius:var(--r); padding:8px 12px; box-shadow:var(--shadow-md); cursor:pointer; }
+  .lote-toggle input{ accent-color:var(--verm); cursor:pointer; }
+  .lote-toggle span{ font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#CBD5E1; }
+  .map-hint{ position:absolute; bottom:12px; left:12px; right:auto; z-index:1000; background:rgba(15,23,42,.85); color:#CBD5E1; font-size:11px; padding:7px 12px; border-radius:var(--r); max-width:70%; }
+  .map-hint b{ color:#F8FAFC; }
+
+  /* Painel de seleção do lote */
+  .sel-panel{ margin-top:14px; border:1.5px solid var(--verm); border-radius:var(--r); padding:16px 18px; background:var(--verm-l); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .sel-info{ flex:1; min-width:220px; }
+  .sel-info .sel-eyebrow{ font-size:9px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--verm); }
+  .sel-info .sel-sql{ font-family:var(--fm); font-size:17px; font-weight:700; color:var(--hi); }
+  .sel-info .sel-meta{ font-size:12px; color:var(--mid); margin-top:2px; }
+  .sel-panel button.go{ padding:13px 26px; font-size:12px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#fff; background:var(--verm); border:none; border-radius:var(--r); cursor:pointer; font-family:var(--ff); }
+  .sel-panel button.go:hover{ background:#B91C22; box-shadow:0 4px 14px var(--verm-m); }
+  .sel-panel button.clear{ background:none; border:none; color:var(--sub); font-size:11px; cursor:pointer; text-decoration:underline; font-family:var(--ff); }
+
+  /* Upload alternativo */
+  details.alt-upload{ margin-top:14px; border:1px dashed var(--border2); border-radius:var(--r); background:var(--base); }
+  details.alt-upload summary{ padding:12px 16px; font-size:12px; font-weight:700; color:var(--sub); cursor:pointer; list-style:none; }
+  details.alt-upload summary::-webkit-details-marker{ display:none; }
+  details.alt-upload summary::before{ content:'+ '; color:var(--verm); font-weight:800; }
+  details.alt-upload[open] summary::before{ content:'− '; }
+  .alt-body{ padding:0 16px 16px; }
+  .drop{ border:1.5px dashed var(--border2); border-radius:var(--r); padding:22px; text-align:center; cursor:pointer; transition:all .2s; background:var(--surf); }
   .drop:hover,.drop.over{ border-color:var(--verm); background:var(--verm-l); }
-  .drop p{ margin:4px 0; font-size:13.5px; color:var(--mid); }
-  .drop p b{ color:var(--hi); }
-  .drop .hint{ font-size:11.5px; color:var(--muted); }
-  .drop img{ max-height:180px; max-width:100%; border-radius:4px; box-shadow:var(--shadow-md); }
-  .drop .fname{ font-family:var(--fm); font-size:11px; color:var(--sub); margin-top:10px; }
-  .drop .swap{ font-size:11px; font-weight:700; color:var(--verm); margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+  .drop p{ margin:2px 0; font-size:13px; color:var(--mid); }
+  .drop .hint{ font-size:11px; color:var(--muted); }
+  .drop img{ max-height:140px; max-width:100%; border-radius:4px; }
+  .drop .fname{ font-family:var(--fm); font-size:11px; color:var(--sub); margin-top:8px; }
+  .alt-fields{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:12px; }
+  .alt-fields input{ width:100%; font-size:13px; font-family:var(--ff); padding:9px 11px; border:1px solid var(--border); border-radius:var(--r); background:var(--surf); color:var(--hi); }
+  .alt-fields input:focus{ outline:none; border-color:var(--verm); }
+  button.alt-go{ width:100%; margin-top:12px; padding:12px; font-size:12px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#fff; background:var(--verm); border:none; border-radius:var(--r); cursor:pointer; font-family:var(--ff); }
+  button.alt-go:disabled{ background:var(--faint); cursor:not-allowed; }
 
-  .fields{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:22px; }
-  label{ display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:6px; }
-  input[type=text]{ width:100%; font-size:13.5px; font-family:var(--ff); padding:10px 12px; border:1px solid var(--border); border-radius:var(--r); background:var(--surf); color:var(--hi); }
-  input[type=text]:hover{ border-color:var(--border2); }
-  input[type=text]:focus{ outline:none; border-color:var(--verm); box-shadow:0 0 0 3px var(--verm-l); }
-  input::placeholder{ color:var(--faint); }
-
-  button.primary{ width:100%; padding:14px; font-size:13px; font-weight:800; font-family:var(--ff); letter-spacing:1.5px; text-transform:uppercase; color:#fff; background:var(--verm); border:none; border-radius:var(--r); cursor:pointer; transition:all .2s; }
-  button.primary:disabled{ background:var(--faint); cursor:not-allowed; }
-  button.primary:not(:disabled):hover{ background:#B91C22; box-shadow:0 4px 14px var(--verm-m); }
-  button.primary:focus-visible{ outline:2px solid var(--hi); outline-offset:2px; }
   button.ghost{ background:none; border:none; color:var(--verm); font-size:12px; font-weight:700; letter-spacing:.5px; cursor:pointer; padding:4px 0; font-family:var(--ff); }
   button.ghost:hover{ text-decoration:underline; }
-
   .hidden{ display:none !important; }
 
   .loading{ text-align:center; padding:60px 20px; }
@@ -117,9 +149,9 @@
   .band .summary{ font-size:13px; color:#CBD5E1; margin-top:18px; max-width:64ch; line-height:1.7; }
   .band .summary b{ color:#F8FAFC; }
 
-  /* Mapa de incidências */
   .map-wrap{ position:relative; border-radius:var(--r); overflow:hidden; border:1px solid var(--border); background:var(--raised); }
   .map-wrap canvas{ display:block; width:100%; height:auto; }
+  #report-map{ height:340px; width:100%; }
   .legend{ display:flex; gap:14px; flex-wrap:wrap; margin-top:14px; }
   .legend-item{ display:flex; align-items:center; gap:7px; font-size:12px; color:var(--mid); }
   .legend-swatch{ width:14px; height:14px; border-radius:3px; border:1.5px solid; flex-shrink:0; }
@@ -154,14 +186,13 @@
   .combo{ margin-top:20px; padding:16px 18px; background:var(--green-l); border-left:3px solid var(--green); border-radius:var(--r); font-size:13px; color:var(--hi); }
   .combo b{ color:var(--green); }
 
-  details{ border:1px solid var(--border); border-radius:var(--r); margin-bottom:10px; background:var(--surf); box-shadow:var(--shadow); }
-  details:hover{ border-color:var(--border2); }
-  summary{ padding:15px 20px; font-size:13px; font-weight:700; letter-spacing:-.1px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px; }
-  summary::-webkit-details-marker{ display:none; }
-  summary .n{ font-family:var(--fm); font-size:11px; color:var(--verm); font-weight:700; margin-right:2px; }
-  summary::after{ content:'+'; font-family:var(--fm); color:var(--muted); font-size:17px; flex-shrink:0; }
-  details[open] summary::after{ content:'−'; }
-  summary:focus-visible{ outline:2px solid var(--verm); outline-offset:-2px; border-radius:var(--r); }
+  details.det{ border:1px solid var(--border); border-radius:var(--r); margin-bottom:10px; background:var(--surf); box-shadow:var(--shadow); }
+  details.det:hover{ border-color:var(--border2); }
+  details.det summary{ padding:15px 20px; font-size:13px; font-weight:700; letter-spacing:-.1px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  details.det summary::-webkit-details-marker{ display:none; }
+  details.det summary .n{ font-family:var(--fm); font-size:11px; color:var(--verm); font-weight:700; margin-right:2px; }
+  details.det summary::after{ content:'+'; font-family:var(--fm); color:var(--muted); font-size:17px; flex-shrink:0; }
+  details.det[open] summary::after{ content:'−'; }
   .det-body{ padding:0 20px 20px; }
   .det-body pre{ font-family:var(--fm); font-size:11.5px; color:var(--mid); background:var(--base); border-radius:var(--r); padding:16px; white-space:pre-wrap; word-break:break-word; line-height:1.6; }
 
@@ -177,40 +208,72 @@
       <span class="hero-badge">GeoSampa API</span>
     </div>
     <div class="eyebrow">Inteligência de terrenos · EHIS / EZEIS</div>
-    <div class="hero-title">Viabilidade urbanística<br><span class="accent">em minutos</span>, não semanas.</div>
-    <p class="hero-desc">Envie o mapa do terreno. O sistema cruza zoneamento, ZEIS, Eixos de Estruturação, PIUs, OUCs e a legislação 2024–2025 para calcular o CA máximo real, o custo de outorga e desenhar as manchas de incidência sobre o lote.</p>
+    <div class="hero-title">Busque o endereço, selecione o lote,<br><span class="accent">receba o laudo</span>.</div>
+    <p class="hero-desc">Pesquise o endereço, ative a camada de lotes do GeoSampa e clique no terreno para confirmar o SQL. A IA cruza zoneamento, ZEIS, Eixos, PIUs, OUCs e a legislação 2024–2025.</p>
   </div>
 </div>
 
 <div class="wrap">
 
-  <!-- FORM -->
+  <!-- FORM: mapa -->
   <section id="s-form">
     <div class="card">
-      <div class="card-eyebrow">Nova análise</div>
-      <h2>Análise de terreno</h2>
-      <p class="sub">Envie a imagem do mapa com a poligonal. Quanto mais referências visíveis (ruas, bairros), maior a precisão — ou informe endereço/SQL diretamente.</p>
+      <div class="card-eyebrow">Selecione o terreno no mapa</div>
 
-      <div class="drop" id="drop" role="button" tabindex="0" aria-label="Selecionar imagem do mapa">
-        <div id="drop-empty">
-          <p><b>Arraste o mapa do terreno aqui</b></p>
-          <p class="hint">ou clique para selecionar · JPEG, PNG, WEBP · máx. 20 MB</p>
-        </div>
-        <div id="drop-full" class="hidden">
-          <img id="preview" alt="Pré-visualização do mapa">
-          <div class="fname" id="fname"></div>
-          <div class="swap">Clique para trocar</div>
-        </div>
-      </div>
-      <input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
-
-      <div class="fields">
-        <div><label for="f-end">Endereço · opcional</label><input type="text" id="f-end" placeholder="R. Frei Caneca, 627 — Consolação"></div>
-        <div><label for="f-sql">SQL · opcional</label><input type="text" id="f-sql" placeholder="010.034.1008-1"></div>
-        <div><label for="f-coord">Coordenadas · opcional</label><input type="text" id="f-coord" placeholder="-23.5539, -46.6520"></div>
+      <div class="search-row">
+        <input type="text" id="search-input" placeholder="Busque o endereço — ex: R. Frei Caneca, 627" autocomplete="off">
+        <button id="search-btn">Buscar</button>
+        <div class="search-results hidden" id="search-results"></div>
       </div>
 
-      <button class="primary" id="btn-run" disabled>Analisar terreno</button>
+      <div class="map-shell">
+        <div id="map"></div>
+        <div class="map-controls">
+          <div class="layer-toggle">
+            <button id="btn-ruas" class="active">Ruas</button>
+            <button id="btn-sat">Satélite</button>
+          </div>
+          <label class="lote-toggle">
+            <input type="checkbox" id="chk-lotes">
+            <span>Lotes GeoSampa</span>
+          </label>
+        </div>
+        <div class="map-hint" id="map-hint"><b>Clique no lote</b> para identificar o SQL e confirmar a análise</div>
+      </div>
+
+      <!-- Painel do lote selecionado -->
+      <div class="sel-panel hidden" id="sel-panel">
+        <div class="sel-info">
+          <div class="sel-eyebrow" id="sel-eyebrow">Lote identificado</div>
+          <div class="sel-sql" id="sel-sql">—</div>
+          <div class="sel-meta" id="sel-meta"></div>
+        </div>
+        <button class="go" id="btn-analisar-lote">Analisar este lote</button>
+        <button class="clear" id="btn-limpar">limpar seleção</button>
+      </div>
+
+      <!-- Upload alternativo -->
+      <details class="alt-upload">
+        <summary>Prefere enviar um print do mapa? (análise por imagem, com manchas de incidência)</summary>
+        <div class="alt-body">
+          <div class="drop" id="drop" role="button" tabindex="0" aria-label="Selecionar imagem do mapa">
+            <div id="drop-empty">
+              <p><b>Arraste o print aqui</b> ou clique para selecionar</p>
+              <p class="hint">JPEG, PNG, WEBP · máx. 20 MB</p>
+            </div>
+            <div id="drop-full" class="hidden">
+              <img id="preview" alt="Pré-visualização do mapa">
+              <div class="fname" id="fname"></div>
+            </div>
+          </div>
+          <input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
+          <div class="alt-fields">
+            <input type="text" id="f-end" placeholder="Endereço (opcional)">
+            <input type="text" id="f-sql" placeholder="SQL (opcional)">
+          </div>
+          <button class="alt-go" id="btn-analisar-img" disabled>Analisar pela imagem</button>
+        </div>
+      </details>
     </div>
   </section>
 
@@ -218,7 +281,7 @@
   <section id="s-loading" class="hidden">
     <div class="card loading">
       <b>Analisando terreno…</b>
-      <div class="steps" id="load-step">Enviando imagem e cruzando legislação vigente</div>
+      <div class="steps" id="load-step">Cruzando zoneamento e legislação vigente</div>
       <div class="bar"><div></div></div>
     </div>
   </section>
@@ -228,7 +291,7 @@
     <div class="banner warn">
       <b>Localização não identificada na imagem</b>
       <span id="location-msg"></span>
-      <div><button class="ghost" onclick="show('form')">← Voltar e preencher endereço ou SQL</button></div>
+      <div><button class="ghost" onclick="show('form')">← Voltar e selecionar no mapa</button></div>
     </div>
   </section>
 
@@ -251,10 +314,216 @@
 </div>
 
 <script>
-const API_URL = '/v1/viabilidade'
+const API = '/v1'
 const $ = id => document.getElementById(id)
-let selectedFile = null
-let uploadedImage = null   // Image para desenhar overlays no laudo
+
+// ═══ Mapa principal ═══
+const map = L.map('map', { zoomControl: true }).setView([-23.5505, -46.6333], 12)
+const baseRuas = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '© OpenStreetMap'
+})
+const baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19, attribution: '© Esri — World Imagery'
+})
+baseRuas.addTo(map)
+
+// Camada de lotes do GeoSampa (WMS). Nome da camada configurável no backend.
+const lotesWMS = L.tileLayer.wms('https://wms.geosampa.prefeitura.sp.gov.br/geoserver/geoportal/wms', {
+  layers: 'geoportal:lote_cidadao',
+  format: 'image/png', transparent: true, version: '1.1.1',
+  attribution: 'Lotes © GeoSampa/PMSP', maxZoom: 19, minZoom: 15
+})
+let lotesFalhou = false
+lotesWMS.on('tileerror', () => {
+  if (lotesFalhou) return
+  lotesFalhou = true
+  $('map-hint').innerHTML = '<b>Camada de lotes indisponível</b> no momento — clique no terreno mesmo assim: o SQL será consultado no cadastro'
+})
+
+$('btn-ruas').addEventListener('click', () => { setBase('ruas') })
+$('btn-sat').addEventListener('click', () => { setBase('sat') })
+function setBase(which) {
+  $('btn-ruas').classList.toggle('active', which === 'ruas')
+  $('btn-sat').classList.toggle('active', which === 'sat')
+  if (which === 'ruas') { map.removeLayer(baseSat); baseRuas.addTo(map) }
+  else { map.removeLayer(baseRuas); baseSat.addTo(map) }
+  if ($('chk-lotes').checked) lotesWMS.bringToFront()
+}
+$('chk-lotes').addEventListener('change', e => {
+  e.target.checked ? lotesWMS.addTo(map) : map.removeLayer(lotesWMS)
+  if (e.target.checked && map.getZoom() < 16) map.setZoom(16)
+})
+
+// ═══ Busca de endereço ═══
+let searchTimer = null
+$('search-btn').addEventListener('click', buscar)
+$('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') buscar() })
+$('search-input').addEventListener('input', () => {
+  clearTimeout(searchTimer)
+  if ($('search-input').value.trim().length >= 5) searchTimer = setTimeout(buscar, 700)
+})
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-row')) $('search-results').classList.add('hidden')
+})
+
+async function buscar() {
+  const q = $('search-input').value.trim()
+  if (q.length < 3) return
+  const box = $('search-results')
+  box.innerHTML = '<button disabled>Buscando…</button>'
+  box.classList.remove('hidden')
+  try {
+    const res = await fetch(`${API}/geosampa/busca?q=${encodeURIComponent(q)}`)
+    const data = await res.json()
+    if (data.status !== 'success' || !data.resultados.length) {
+      box.innerHTML = '<button disabled>Nenhum resultado — refine o endereço</button>'
+      return
+    }
+    box.innerHTML = ''
+    data.resultados.forEach(r => {
+      const b = document.createElement('button')
+      b.textContent = r.label
+      b.addEventListener('click', () => {
+        box.classList.add('hidden')
+        map.flyTo([r.lat, r.lng], 18, { duration: 1.2 })
+        $('chk-lotes').checked = true
+        lotesWMS.addTo(map)
+        ultimoEndereco = r.label
+      })
+      box.appendChild(b)
+    })
+  } catch {
+    box.innerHTML = '<button disabled>Busca indisponível — navegue pelo mapa e clique no lote</button>'
+  }
+}
+
+// ═══ Seleção de lote por clique ═══
+let selMarker = null, selPoly = null, selecao = null, ultimoEndereco = null
+
+map.on('click', async e => {
+  const { lat, lng } = e.latlng
+  if (map.getZoom() < 16) { map.flyTo([lat, lng], 17, { duration: .8 }); return }
+
+  if (selMarker) map.removeLayer(selMarker)
+  if (selPoly) { map.removeLayer(selPoly); selPoly = null }
+  selMarker = L.marker([lat, lng]).addTo(map)
+
+  $('sel-panel').classList.remove('hidden')
+  $('sel-eyebrow').textContent = 'Consultando cadastro…'
+  $('sel-sql').textContent = '…'
+  $('sel-meta').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+
+  try {
+    const res = await fetch(`${API}/geosampa/lote?lat=${lat}&lng=${lng}`)
+    const data = await res.json()
+    if (data.status === 'success') {
+      selecao = { sql: data.sql, endereco: data.endereco || ultimoEndereco, coordenadas: `${lat.toFixed(6)}, ${lng.toFixed(6)}` }
+      $('sel-eyebrow').textContent = 'Lote identificado no cadastro'
+      $('sel-sql').textContent = data.sql ? `SQL ${data.sql}` : 'SQL não informado na camada'
+      $('sel-meta').textContent = [data.endereco, data.area_m2 ? `≈ ${data.area_m2} m²` : null, selecao.coordenadas].filter(Boolean).join(' · ')
+      if (data.geometria) {
+        selPoly = L.geoJSON(data.geometria, { style: { color: '#D8232A', weight: 3, fillColor: '#D8232A', fillOpacity: .12 } }).addTo(map)
+        try { map.fitBounds(selPoly.getBounds(), { maxZoom: 18, padding: [30, 30] }) } catch {}
+      }
+    } else {
+      selecao = { sql: null, endereco: ultimoEndereco, coordenadas: `${lat.toFixed(6)}, ${lng.toFixed(6)}` }
+      $('sel-eyebrow').textContent = data.status === 'vazio' ? 'Nenhum lote neste ponto' : 'Cadastro indisponível'
+      $('sel-sql').textContent = 'Analisar pelas coordenadas'
+      $('sel-meta').textContent = (data.mensagem || '') + ' · ' + selecao.coordenadas
+    }
+  } catch {
+    selecao = { sql: null, endereco: ultimoEndereco, coordenadas: `${lat.toFixed(6)}, ${lng.toFixed(6)}` }
+    $('sel-eyebrow').textContent = 'Cadastro indisponível'
+    $('sel-sql').textContent = 'Analisar pelas coordenadas'
+    $('sel-meta').textContent = selecao.coordenadas
+  }
+})
+
+$('btn-limpar').addEventListener('click', () => {
+  if (selMarker) map.removeLayer(selMarker)
+  if (selPoly) map.removeLayer(selPoly)
+  selMarker = selPoly = selecao = null
+  $('sel-panel').classList.add('hidden')
+})
+
+$('btn-analisar-lote').addEventListener('click', () => {
+  if (!selecao) return
+  analisar({ sql: selecao.sql, endereco: selecao.endereco, coordenadas: selecao.coordenadas })
+})
+
+// ═══ Upload alternativo ═══
+let selectedFile = null, uploadedImage = null
+const drop = $('drop'), file = $('file')
+drop.addEventListener('click', () => file.click())
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click() } })
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over') })
+drop.addEventListener('dragleave', () => drop.classList.remove('over'))
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]) })
+file.addEventListener('change', () => { if (file.files[0]) setFile(file.files[0]) })
+function setFile(f) {
+  selectedFile = f
+  $('drop-empty').classList.add('hidden')
+  $('drop-full').classList.remove('hidden')
+  $('fname').textContent = f.name + ' · ' + (f.size/1024).toFixed(0) + ' KB'
+  const r = new FileReader()
+  r.onload = e => { $('preview').src = e.target.result; uploadedImage = new Image(); uploadedImage.src = e.target.result }
+  r.readAsDataURL(f)
+  $('btn-analisar-img').disabled = false
+}
+$('btn-analisar-img').addEventListener('click', () => {
+  if (!selectedFile) return
+  analisar({ file: selectedFile, endereco: $('f-end').value.trim(), sql: $('f-sql').value.trim() })
+})
+
+// ═══ Fluxo de análise ═══
+function show(section) {
+  ['form','loading','location','error','report'].forEach(s => $('s-' + s).classList.add('hidden'))
+  $('s-' + section).classList.remove('hidden')
+  if (section === 'form') setTimeout(() => map.invalidateSize(), 100)
+}
+
+const steps = [
+  'Cruzando zoneamento LPUOS e sobreposições ZEIS',
+  'Verificando Eixos, PIUs, OUCs e tombamento',
+  'Calculando CA máximo real e outorga…'
+]
+
+async function analisar(input) {
+  show('loading')
+  let si = 0
+  $('load-step').textContent = steps[0]
+  const stepTimer = setInterval(() => { si = (si + 1) % steps.length; $('load-step').textContent = steps[si] }, 2500)
+
+  const fd = new FormData()
+  if (input.file) fd.append('imagem', input.file)
+  else uploadedImage = null
+  if (input.endereco) fd.append('endereco', input.endereco)
+  if (input.sql) fd.append('sql', input.sql)
+  if (input.coordenadas) fd.append('coordenadas', input.coordenadas)
+
+  try {
+    const res = await fetch(`${API}/viabilidade`, { method: 'POST', body: fd })
+    const data = await res.json()
+    clearInterval(stepTimer)
+    if (data.status === 'localizacao_necessaria') { $('location-msg').textContent = data.mensagem; show('location') }
+    else if (data.status === 'erro') {
+      let msg = String(data.mensagem || '')
+      if (msg.includes('ANTHROPIC_API_KEY não configurada')) msg = 'O servidor ainda não tem a chave da IA configurada. Administrador: configure ANTHROPIC_API_KEY no ambiente.'
+      else if (msg.includes('invalid x-api-key') || msg.includes('authentication_error')) msg = 'A chave da IA foi recusada. Administrador: gere uma nova chave em console.anthropic.com e atualize o ambiente.'
+      $('error-msg').textContent = msg; show('error')
+    }
+    else if (data.status === 'success') { renderReport(data); show('report'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+    else { $('error-msg').textContent = 'Resposta inesperada do servidor.'; show('error') }
+  } catch {
+    clearInterval(stepTimer)
+    $('error-msg').textContent = 'Erro de conexão com o servidor.'
+    show('error')
+  }
+}
+
+// ═══ Render do laudo ═══
+function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function num(v, fb){ const n = parseFloat(String(v ?? '').replace(',','.')); return isNaN(n) ? fb : n }
 
 const OVERLAY_STYLES = {
   app_corrego:          { fill:'rgba(3,105,161,.38)',  stroke:'#0369A1', label:'APP / curso d’água' },
@@ -264,85 +533,6 @@ const OVERLAY_STYLES = {
   tombamento_ambiencia: { fill:'rgba(107,33,168,.32)', stroke:'#6B21A8', label:'Ambiência de tombamento' },
   outro:                { fill:'rgba(100,116,139,.35)',stroke:'#64748B', label:'Outra restrição' }
 }
-const TERRENO_STYLE = { stroke:'#D8232A', fill:'rgba(216,35,42,.06)' }
-
-// ─── Upload ───
-const drop = $('drop'), file = $('file')
-drop.addEventListener('click', () => file.click())
-drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click() } })
-drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over') })
-drop.addEventListener('dragleave', () => drop.classList.remove('over'))
-drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]) })
-file.addEventListener('change', () => { if (file.files[0]) setFile(file.files[0]) })
-
-function setFile(f) {
-  selectedFile = f
-  $('drop-empty').classList.add('hidden')
-  $('drop-full').classList.remove('hidden')
-  $('fname').textContent = f.name + ' · ' + (f.size/1024).toFixed(0) + ' KB'
-  const r = new FileReader()
-  r.onload = e => {
-    $('preview').src = e.target.result
-    uploadedImage = new Image()
-    uploadedImage.src = e.target.result
-  }
-  r.readAsDataURL(f)
-  $('btn-run').disabled = false
-}
-
-// ─── Fluxo ───
-function show(section) {
-  ['form','loading','location','error','report'].forEach(s => $('s-' + s).classList.add('hidden'))
-  $('s-' + section).classList.remove('hidden')
-}
-
-const steps = [
-  'Enviando imagem e lendo a poligonal',
-  'Cruzando zoneamento LPUOS e sobreposições ZEIS',
-  'Verificando Eixos, PIUs, OUCs e tombamento',
-  'Mapeando manchas de incidência sobre o lote',
-  'Calculando CA máximo real e outorga…'
-]
-
-$('btn-run').addEventListener('click', async () => {
-  if (!selectedFile) return
-  show('loading')
-  let si = 0
-  const stepTimer = setInterval(() => { si = (si + 1) % steps.length; $('load-step').textContent = steps[si] }, 2500)
-
-  const fd = new FormData()
-  fd.append('imagem', selectedFile)
-  const end = $('f-end').value.trim(), sql = $('f-sql').value.trim(), coord = $('f-coord').value.trim()
-  if (end) fd.append('endereco', end)
-  if (sql) fd.append('sql', sql)
-  if (coord) fd.append('coordenadas', coord)
-
-  try {
-    const res = await fetch(API_URL, { method: 'POST', body: fd })
-    const data = await res.json()
-    clearInterval(stepTimer)
-    if (data.status === 'localizacao_necessaria') { $('location-msg').textContent = data.mensagem; show('location') }
-    else if (data.status === 'erro') {
-      let msg = String(data.mensagem || '')
-      if (msg.includes('ANTHROPIC_API_KEY não configurada')) {
-        msg = 'O servidor ainda não tem a chave da IA configurada. Administrador: no painel do Render, abra Environment → Add Environment Variable → ANTHROPIC_API_KEY com a chave obtida em console.anthropic.com, salve e aguarde o redeploy (~2 min).'
-      } else if (msg.includes('invalid x-api-key') || msg.includes('authentication_error')) {
-        msg = 'A chave da IA configurada no servidor foi recusada (401 — invalid x-api-key). Administrador: gere uma NOVA chave em console.anthropic.com → API Keys → Create Key, copie o valor completo (começa com sk-ant-api...) e substitua no Render em Environment → ANTHROPIC_API_KEY, sem aspas nem espaços. Salve e aguarde o redeploy.'
-      }
-      $('error-msg').textContent = msg; show('error')
-    }
-    else if (data.status === 'success') { renderReport(data); show('report'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
-    else { $('error-msg').textContent = 'Resposta inesperada do servidor.'; show('error') }
-  } catch (err) {
-    clearInterval(stepTimer)
-    $('error-msg').textContent = 'Erro de conexão com o servidor. Verifique se a API está rodando.'
-    show('error')
-  }
-})
-
-// ─── Render do laudo ───
-function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
-function num(v, fallback){ const n = parseFloat(String(v ?? '').replace(',','.')); return isNaN(n) ? fallback : n }
 
 function renderReport(data) {
   const a = data.analise || {}
@@ -401,12 +591,13 @@ function renderReport(data) {
     ['Estratégias de maximização', a['4_maximizacao']],
     ['Checklist GeoSampa e conclusão', a['5_checklist']]
   ].filter(([,c]) => c).map(([t, c], i) =>
-    `<details><summary><span><span class="n">0${i+1}</span> ${esc(t)}</span></summary>
+    `<details class="det"><summary><span><span class="n">0${i+1}</span> ${esc(t)}</span></summary>
      <div class="det-body"><pre>${esc(JSON.stringify(c, null, 2))}</pre></div></details>`
   ).join('')
 
   const conf = check.indice_confianca || ''
-  const hasOverlays = ov && ((Array.isArray(ov.terreno_poligono) && ov.terreno_poligono.length > 2) || (ov.incidencias || []).some(i => Array.isArray(i.poligono) && i.poligono.length > 2))
+  const hasImgOverlays = uploadedImage && ((Array.isArray(ov.terreno_poligono) && ov.terreno_poligono.length > 2) || (ov.incidencias || []).some(i => Array.isArray(i.poligono) && i.poligono.length > 2))
+  const hasLoteMap = !uploadedImage && selecao && selPoly
 
   $('s-report').innerHTML = `
     <div class="report-head">
@@ -421,6 +612,7 @@ function renderReport(data) {
           <div class="band-title">${esc(a.localizacao_identificada || '—')}</div>
           <div class="chips">
             <span class="chip hot">${esc(a.zoneamento_identificado || '—')}</span>
+            ${selecao && selecao.sql ? `<span class="chip">SQL ${esc(selecao.sql)}</span>` : ''}
             ${conf ? `<span class="chip">Confiança: ${esc(conf)}</span>` : ''}
           </div>
         </div>
@@ -439,12 +631,19 @@ function renderReport(data) {
       <p class="summary">${esc(data.mensagem || '')}</p>
     </div>
 
-    ${hasOverlays ? `
+    ${hasImgOverlays ? `
     <div class="card">
       <div class="card-eyebrow">Manchas de incidência sobre o lote</div>
       <div class="map-wrap"><canvas id="map-canvas"></canvas></div>
       <div class="legend" id="map-legend"></div>
       ${ov.observacao ? `<div class="map-note">${esc(ov.observacao)}</div>` : ''}
+    </div>` : ''}
+
+    ${hasLoteMap ? `
+    <div class="card">
+      <div class="card-eyebrow">Lote no cadastro oficial</div>
+      <div class="map-wrap"><div id="report-map"></div></div>
+      <div class="map-note">Geometria oficial da camada de lotes do GeoSampa. Ative a camada de satélite para conferir a ocupação atual.</div>
     </div>` : ''}
 
     ${flags ? `<div class="card"><div class="card-eyebrow">Red flags</div>${flags}</div>` : ''}
@@ -463,58 +662,47 @@ function renderReport(data) {
   $('btn-back').addEventListener('click', () => show('form'))
   requestAnimationFrame(() => { $('ca-fill').style.width = Math.min((caMax/scaleMax)*100, 100) + '%' })
 
-  if (hasOverlays) drawOverlays(ov)
+  if (hasImgOverlays) drawOverlays(ov)
+  if (hasLoteMap) {
+    const rmap = L.map('report-map', { zoomControl: true })
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' }).addTo(rmap)
+    const g = L.geoJSON(selPoly.toGeoJSON(), { style: { color: '#D8232A', weight: 3, fillColor: '#D8232A', fillOpacity: .15 } }).addTo(rmap)
+    rmap.fitBounds(g.getBounds(), { maxZoom: 18, padding: [24, 24] })
+  }
 }
 
-// ─── Canvas: imagem enviada + manchas de incidência ───
+// Canvas: imagem enviada + manchas (modo upload)
 function drawOverlays(ov) {
   const canvas = $('map-canvas')
   if (!canvas || !uploadedImage) return
-
   const render = () => {
     const W = uploadedImage.naturalWidth, H = uploadedImage.naturalHeight
     canvas.width = W; canvas.height = H
     const ctx = canvas.getContext('2d')
     ctx.drawImage(uploadedImage, 0, 0)
-
     const legend = []
-
     if (Array.isArray(ov.terreno_poligono) && ov.terreno_poligono.length > 2) {
-      drawPoly(ctx, ov.terreno_poligono, W, H, TERRENO_STYLE.fill, TERRENO_STYLE.stroke, Math.max(3, W/300), [])
-      legend.push({ fill: TERRENO_STYLE.fill, stroke: TERRENO_STYLE.stroke, label: 'Poligonal do terreno' })
+      drawPoly(ctx, ov.terreno_poligono, W, H, 'rgba(216,35,42,.06)', '#D8232A', Math.max(3, W/300), [])
+      legend.push({ fill:'rgba(216,35,42,.06)', stroke:'#D8232A', label:'Poligonal do terreno' })
     }
-
     for (const inc of (ov.incidencias || [])) {
       if (!Array.isArray(inc.poligono) || inc.poligono.length < 3) continue
       const st = OVERLAY_STYLES[inc.tipo] || OVERLAY_STYLES.outro
       drawPoly(ctx, inc.poligono, W, H, st.fill, st.stroke, Math.max(2, W/400), [8, 6])
       legend.push({ fill: st.fill, stroke: st.stroke, label: inc.rotulo || st.label })
     }
-
     $('map-legend').innerHTML = legend.map(l =>
       `<span class="legend-item"><span class="legend-swatch" style="background:${l.fill};border-color:${l.stroke}"></span>${esc(l.label)}</span>`
     ).join('')
   }
-
-  if (uploadedImage.complete) render()
-  else uploadedImage.onload = render
+  if (uploadedImage.complete) render(); else uploadedImage.onload = render
 }
 
 function drawPoly(ctx, pts, W, H, fill, stroke, lw, dash) {
-  ctx.save()
-  ctx.beginPath()
-  pts.forEach(([x, y], i) => {
-    const px = x * W, py = y * H
-    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
-  })
-  ctx.closePath()
-  ctx.fillStyle = fill
-  ctx.fill()
-  ctx.setLineDash(dash)
-  ctx.lineWidth = lw
-  ctx.strokeStyle = stroke
-  ctx.stroke()
-  ctx.restore()
+  ctx.save(); ctx.beginPath()
+  pts.forEach(([x, y], i) => { const px = x*W, py = y*H; i === 0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py) })
+  ctx.closePath(); ctx.fillStyle = fill; ctx.fill()
+  ctx.setLineDash(dash); ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); ctx.restore()
 }
 </script>
 </body>

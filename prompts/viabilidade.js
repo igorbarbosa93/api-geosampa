@@ -217,16 +217,20 @@ LEGISLAÇÃO BASE: LPUOS Lei 16.402/2016, PDE Lei 16.050/2014, Lei 17.975/2023 (
 function buildUserMessage(base64Image, mediaType, extras = {}) {
   const content = []
 
-  content.push({
-    type: 'image',
-    source: {
-      type: 'base64',
-      media_type: mediaType,
-      data: base64Image
-    }
-  })
+  if (base64Image) {
+    content.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: mediaType,
+        data: base64Image
+      }
+    })
+  }
 
-  let textParts = ['Analise esta imagem de mapa e elabore o Estudo de Viabilidade Urbanística completo conforme as instruções, incluindo a seção de oportunidades_incremento_ca com todos os mecanismos legais aplicáveis a este lote.']
+  let textParts = [base64Image
+    ? 'Analise esta imagem de mapa e elabore o Estudo de Viabilidade Urbanística completo conforme as instruções, incluindo a seção de oportunidades_incremento_ca com todos os mecanismos legais aplicáveis a este lote.'
+    : 'ANÁLISE SEM IMAGEM: o lote foi selecionado diretamente no mapa cadastral do GeoSampa. Elabore o Estudo de Viabilidade Urbanística completo com base na localização informada abaixo. A regra do gatilho de segurança visual NÃO se aplica (a localização é confirmada). Em "overlays_mapa", retorne terreno_poligono: null e incidencias: [] (a geometria virá do cadastro oficial). Não descreva a imagem.']
 
   if (extras.endereco) textParts.push(`Endereço fornecido: ${extras.endereco}`)
   if (extras.sql) textParts.push(`SQL (Setor-Quadra-Lote) fornecido: ${extras.sql}`)

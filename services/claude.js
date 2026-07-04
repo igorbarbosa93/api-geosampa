@@ -28,12 +28,12 @@ function getClient() {
 }
 
 async function analyzeViability(imageBuffer, mediaType, extras = {}) {
-  if (!SUPPORTED_MEDIA_TYPES.includes(mediaType)) {
+  if (imageBuffer && !SUPPORTED_MEDIA_TYPES.includes(mediaType)) {
     throw new Error(`Tipo de imagem não suportado: ${mediaType}. Use JPEG, PNG, GIF ou WEBP.`)
   }
 
   const client = getClient()
-  const base64Image = imageBuffer.toString('base64')
+  const base64Image = imageBuffer ? imageBuffer.toString('base64') : null
   const userContent = buildUserMessage(base64Image, mediaType, extras)
 
   const response = await client.messages.create({

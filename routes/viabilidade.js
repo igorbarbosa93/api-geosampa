@@ -3,26 +3,27 @@ const { analyzeViability } = require('../services/claude')
 const SUPPORTED_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
 module.exports = async (req, res) => {
-  if (!req.file) {
+  const { endereco, sql, coordenadas } = req.body || {}
+
+  // Imagem OU localização (SQL/endereço/coordenadas vindos do mapa)
+  if (!req.file && !endereco && !sql && !coordenadas) {
     return res.status(400).json({
       status: 'erro',
-      mensagem: 'Campo "imagem" é obrigatório. Envie a imagem do mapa como multipart/form-data.'
+      mensagem: 'Envie a imagem do mapa OU informe sql/endereco/coordenadas do lote selecionado.'
     })
   }
 
-  if (!SUPPORTED_MIMETYPES.includes(req.file.mimetype)) {
+  if (req.file && !SUPPORTED_MIMETYPES.includes(req.file.mimetype)) {
     return res.status(400).json({
       status: 'erro',
       mensagem: `Tipo de imagem não suportado: ${req.file.mimetype}. Use JPEG, PNG, GIF ou WEBP.`
     })
   }
 
-  const { endereco, sql, coordenadas } = req.body || {}
-
   try {
     const result = await analyzeViability(
-      req.file.buffer,
-      req.file.mimetype,
+      req.file ? req.file.buffer : null,
+      req.file ? req.file.mimetype : null,
       { endereco, sql, coordenadas }
     )
     res.json(result)
