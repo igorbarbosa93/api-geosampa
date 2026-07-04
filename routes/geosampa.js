@@ -110,10 +110,57 @@ const LAYER_CANDIDATES = {
 }
 const layerCache = {}
 
+// ─── Autodescoberta de camadas via GetCapabilities ───
+// O GeoServer da PMSP renomeia camadas entre publicações; em vez de
+// depender de nomes fixos, o servidor lê o catálogo real na primeira
+// requisição e classifica as camadas por palavra-chave.
+const DISCOVERY_PATTERNS = {
+  zona:       [/zonea/i, /zona[_-]?uso/i, /lei[_-]?16402/i],
+  eixo:       [/eixo/i],
+  operacao:   [/opera[cç][aã]o[_-]?urbana/i, /\bpiu\b/i, /\bouc\b/i],
+  tombamento: [/tomb/i, /zepec/i, /patrimonio/i]
+}
+let discoveryPromise = null
+
+async function discoverLayers() {
+  if (discoveryPromise) return discoveryPromise
+  discoveryPromise = (async () => {
+    const url = `${GEOSAMPA_WMS}?service=WMS&version=1.1.1&request=GetCapabilities`
+    const ctl = new AbortController()
+    const t = setTimeout(() => ctl.abort(), 20000)
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: ctl.signal })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const xml = await res.text()
+      const names = [...xml.matchAll(/<Name>([^<]+)<\/Name>/g)].map(m => m[1].trim())
+      const found = {}
+      for (const [kind, patterns] of Object.entries(DISCOVERY_PATTERNS)) {
+        found[kind] = names.filter(n => patterns.some(p => p.test(n)))
+      }
+      console.log('[geosampa] camadas descobertas:', JSON.stringify(found))
+      return found
+    } catch (err) {
+      console.error('[geosampa] GetCapabilities falhou:', err.message)
+      discoveryPromise = null // permite nova tentativa na próxima requisição
+      return {}
+    } finally {
+      clearTimeout(t)
+    }
+  })()
+  return discoveryPromise
+}
+
 async function featureAtPoint(kind, lat, lng) {
   const d = 0.0004
   const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
-  const candidates = layerCache[kind] ? [layerCache[kind]] : LAYER_CANDIDATES[kind]
+  let candidates
+  if (layerCache[kind]) {
+    candidates = [layerCache[kind]]
+  } else {
+    const discovered = await discoverLayers()
+    // Descobertas primeiro (existem de fato no servidor), estáticas como reserva
+    candidates = [...(discovered[kind] || []), ...LAYER_CANDIDATES[kind]]
+  }
   for (const layer of candidates) {
     try {
       const params = new URLSearchParams({
@@ -131,12 +178,22 @@ async function featureAtPoint(kind, lat, lng) {
   return undefined // camada indisponível (≠ null, que significa "sem feature no ponto")
 }
 
+// Padrão de siglas de zona da LPUOS (ZEU, ZEUP, ZM, ZC, ZEIS-1..5, ZER, ZPI, ZOE, ZEPAM...)
+const SIGLA_RE = /^Z(EU[P]?|EMP?|M[a]?|C[A]?|OE|R|ER|EPAM|EPEC|PI|DE|PDS[r]?|COR|PR|EIS[\s-]?[1-5])$|^ZEIS[\s-]?[1-5]/i
+
 function extrairSigla(props) {
   if (!props) return null
-  const cand = props.zl_zona || props.zona || props.sigla || props.tx_zona ||
-    props.cd_zona || props.nm_zona || props.layer || null
-  if (!cand) return null
-  return String(cand).toUpperCase().replace(/\s+/g, '-').replace('ZEIS', 'ZEIS-').replace('ZEIS--', 'ZEIS-').replace(/-+$/, '')
+  const norm = v => String(v).toUpperCase().trim().replace(/\s+/g, '-')
+    .replace(/^ZEIS-?(\d)/, 'ZEIS-$1').replace(/-+$/, '')
+  // 1) chaves conhecidas da camada de zoneamento
+  for (const k of ['zl_zona', 'zona', 'sigla', 'tx_zona', 'cd_zona', 'nm_zona', 'zoneamento', 'tx_sigla']) {
+    if (props[k]) return norm(props[k])
+  }
+  // 2) varredura: qualquer valor string que casa com padrão de sigla de zona
+  for (const v of Object.values(props)) {
+    if (typeof v === 'string' && SIGLA_RE.test(v.trim())) return norm(v)
+  }
+  return null
 }
 
 // Cálculo determinístico do CA a partir da base jurídica
@@ -213,4 +270,17 @@ async function contexto(req, res) {
   })
 }
 
-module.exports = { busca, lote, contexto }
+// GET /v1/geosampa/camadas — diagnóstico: mostra as camadas descobertas
+// no GeoServer da PMSP e quais estão em uso para cada consulta
+async function camadas(req, res) {
+  const discovered = await discoverLayers()
+  res.json({
+    status: 'success',
+    wms: GEOSAMPA_WMS,
+    descobertas: discovered,
+    em_uso: layerCache,
+    candidatos_estaticos: LAYER_CANDIDATES
+  })
+}
+
+module.exports = { busca, lote, contexto, camadas }
