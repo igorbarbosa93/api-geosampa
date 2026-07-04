@@ -36,6 +36,8 @@ async function analyzeViability(imageBuffer, mediaType, extras = {}) {
   const base64Image = imageBuffer ? imageBuffer.toString('base64') : null
   const userContent = buildUserMessage(base64Image, mediaType, extras)
 
+  // tool_choice forçado garante JSON estruturado validado pela própria API —
+  // elimina erros de parse por markdown, texto extra ou caracteres inválidos.
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 20000,
@@ -46,25 +48,43 @@ async function analyzeViability(imageBuffer, mediaType, extras = {}) {
         cache_control: { type: 'ephemeral' }
       }
     ],
+    tools: [{
+      name: 'entregar_laudo',
+      description: 'Entrega o laudo de viabilidade urbanística estruturado. O objeto deve seguir exatamente o formato JSON definido nas instruções do sistema (status, mensagem, analise).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['success', 'localizacao_necessaria'] },
+          mensagem: { type: 'string' },
+          analise: { type: ['object', 'null'] }
+        },
+        required: ['status', 'mensagem'],
+        additionalProperties: true
+      }
+    }],
+    tool_choice: { type: 'tool', name: 'entregar_laudo' },
     messages: [{ role: 'user', content: userContent }]
   })
 
   if (response.stop_reason === 'max_tokens') {
-    throw new Error('O laudo excedeu o tamanho máximo de resposta. Tente novamente com uma imagem mais simples ou informe o endereço/SQL para reduzir a análise.')
+    throw new Error('O laudo excedeu o tamanho máximo de resposta. Tente novamente.')
   }
 
-  let text = (response.content.find(b => b.type === 'text')?.text || '').trim()
+  const toolUse = response.content.find(b => b.type === 'tool_use')
+  if (toolUse && toolUse.input && toolUse.input.status) {
+    return toolUse.input
+  }
 
-  // Remove cercas de markdown e texto fora do objeto JSON
+  // Fallback: parse do texto (caso o modelo responda fora do tool)
+  let text = (response.content.find(b => b.type === 'text')?.text || '').trim()
   text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '')
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')
   if (start >= 0 && end > start) text = text.slice(start, end + 1)
-
   try {
     return JSON.parse(text)
   } catch {
-    console.error('[viabilidade] Resposta não-JSON da IA (inicio):', text.slice(0, 500))
+    console.error('[viabilidade] Resposta não estruturada da IA (inicio):', text.slice(0, 500))
     throw new Error('Resposta da IA não é JSON válido. Tente novamente.')
   }
 }
