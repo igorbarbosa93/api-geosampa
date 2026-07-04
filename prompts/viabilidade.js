@@ -215,7 +215,8 @@ INSTRUÇÃO CRÍTICA SOBRE OS DADOS OFICIAIS:
 - NÃO especule zoneamento diferente do campo "zona". NÃO recalcule o CA de forma divergente de "parametros_calculados" — use ca_maximo_aplicavel como o CA máximo real do laudo.
 - Se "bonus_aplicado" existe, o CA com bônus JÁ está em ca_maximo_aplicavel. Se "bonus_bloqueado" existe, explique o bloqueio no laudo.
 - Campos null significam "camada indisponível na consulta" — apenas nesses pontos recomende verificação manual, sem especular.
-- Com zona confirmada, "indice_confianca" deve ser "alto". Sua tarefa é interpretar e estrategizar sobre estes fatos, não redescobri-los.`)
+- Com zona confirmada, "indice_confianca" deve ser "alto". Sua tarefa é interpretar e estrategizar sobre estes fatos, não redescobri-los.
+- SE "modo" = "bloco_unico_remembramento" (múltiplos SQLs): analise os lotes como UM TERRENO ÚNICO unificado. Some as áreas (area_total_m2). Se as zonas divergirem entre lotes, aplique a regra de cada zona à fração correspondente e destaque a divergência. Inclua no laudo: necessidade de remembramento formal (registro em cartório e unificação de matrículas) como condição prévia, custos e prazos típicos desse procedimento, e o ganho de potencial construtivo do terreno unificado vs. lotes isolados.`)
   }
 
   content.push({ type: 'text', text: textParts.join('\n') })

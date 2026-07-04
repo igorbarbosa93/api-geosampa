@@ -100,7 +100,7 @@ const LEGISLACAO = require('../prompts/legislacao-his')
 // o primeiro que responder com feature é memorizado.
 const LAYER_CANDIDATES = {
   zona: (process.env.GEOSAMPA_ZONA_LAYERS ||
-    'geoportal:zoneamento_2016,geoportal:zoneamento,geoportal:zona_uso,geoportal:LEI17402_zoneamento').split(','),
+    'geoportal:perimetros_zonas_lei_18177_2024,geoportal:zoneamento_lei_18177,geoportal:zoneamento_2024,geoportal:zoneamento_2016,geoportal:zoneamento,geoportal:zona_uso').split(','),
   eixo: (process.env.GEOSAMPA_EIXO_LAYERS ||
     'geoportal:eixos_area_influencia,geoportal:area_influencia_eixos,geoportal:eixo_estruturacao').split(','),
   operacao: (process.env.GEOSAMPA_OU_LAYERS ||
@@ -115,10 +115,16 @@ const layerCache = {}
 // depender de nomes fixos, o servidor lê o catálogo real na primeira
 // requisição e classifica as camadas por palavra-chave.
 const DISCOVERY_PATTERNS = {
-  zona:       [/zonea/i, /zona[_-]?uso/i, /lei[_-]?16402/i],
+  // Lei 18.177/2024 (Mapa 1) é o zoneamento VIGENTE — prioridade sobre 2016
+  zona:       [/18[_.-]?177/i, /perimetros?[_-]?d?a?s?[_-]?zonas/i, /zonea/i, /zona[_-]?uso/i, /lei[_-]?16402/i],
   eixo:       [/eixo/i],
   operacao:   [/opera[cç][aã]o[_-]?urbana/i, /\bpiu\b/i, /\bouc\b/i],
   tombamento: [/tomb/i, /zepec/i, /patrimonio/i]
+}
+// Ordena candidatos descobertos pela prioridade dos padrões (18.177 primeiro)
+function rankByPatterns(names, patterns) {
+  const score = n => { const i = patterns.findIndex(p => p.test(n)); return i < 0 ? 99 : i }
+  return [...names].sort((a, b) => score(a) - score(b))
 }
 let discoveryPromise = null
 
@@ -135,7 +141,7 @@ async function discoverLayers() {
       const names = [...xml.matchAll(/<Name>([^<]+)<\/Name>/g)].map(m => m[1].trim())
       const found = {}
       for (const [kind, patterns] of Object.entries(DISCOVERY_PATTERNS)) {
-        found[kind] = names.filter(n => patterns.some(p => p.test(n)))
+        found[kind] = rankByPatterns(names.filter(n => patterns.some(p => p.test(n))), patterns)
       }
       console.log('[geosampa] camadas descobertas:', JSON.stringify(found))
       return found
