@@ -202,40 +202,78 @@ function extrairSigla(props) {
   return null
 }
 
-// Cálculo determinístico do CA a partir da base jurídica
-function calcularParametros(sigla, emEixo, temTombamento) {
+// Cálculo determinístico do CA a partir do quadro consolidado 2024
+// (Quadro 3 LPUOS revisado + Quadro 2 do Decreto 63.728/2024 — EHIS).
+// areaLoteM2: quando conhecida (lote único ou soma do bloco), aplica as
+// travas de lote pequeno das ZEIS; quando não, retorna a condição.
+function calcularParametros(sigla, emEixo, temTombamento, areaLoteM2) {
   if (!sigla) return null
   const norm = sigla.replace(/^ZEIS-?(\d)$/, 'ZEIS-$1')
-  const zeis = LEGISLACAO.zeis[norm]
-  const zona = LEGISLACAO.zonas_uso[norm]
-  const base = zeis || zona
-  if (!base) return { sigla: norm, nota: 'Zona fora da base de parâmetros — verificar Quadro 3 LPUOS' }
+  const q = LEGISLACAO.quadro_zonas_2024[norm]
+  if (!q) return { sigla: norm, nota: 'Zona fora do quadro consolidado — verificar Quadro 3 LPUOS no anexo oficial' }
 
   const p = {
     sigla: norm,
-    fonte: zeis ? 'Base ZEIS (Lei 16.402/2016 + Lei 17.975/2023 + Dec. 63.728/2024)' : 'Quadro 3 LPUOS',
-    ca_basico: base.ca_basico,
-    ca_maximo_zona: base.ca_maximo,
-    to_maxima: base.to_maxima || base.to_max || null,
-    gabarito: base.gabarito || null,
-    his_percentual_minimo: base.his_percentual_minimo || null,
+    fonte: 'Quadro consolidado 2024 (LPUOS rev. L18.081/24 + Mapa 1 L18.177/24 + Quadro 2 Dec. 63.728/24)',
+    confiabilidade: q.conf === 'duplo' ? 'confirmado por duas fontes' : 'fonte única — conferir no anexo oficial da Lei 18.081/24',
+    ca_basico: q.ca_bas,
+    ca_maximo_geral: q.ca_max_geral,
+    ca_maximo_ehis: q.ca_max_ehis,
+    ca_maximo_ehmp: q.ca_max_ehmp,
+    to_maxima: q.to,
+    gabarito_m: q.gabarito_m === null ? 'livre (NA)' : q.gabarito_m,
+    recuos: q.recuos,
+    cota_parte_m2: q.cota_parte_m2,
     em_eixo: emEixo === true,
-    tombamento_no_lote: temTombamento === true
+    tombamento_no_lote: temTombamento === true,
+    condicoes: q.condicoes || []
   }
 
-  // Bônus Lei 17.975/2023: ZEIS-2/3/5 em Eixo, sem tombamento → +50%
-  const elegivel = ['ZEIS-2', 'ZEIS-3', 'ZEIS-5'].includes(norm)
-  if (elegivel && emEixo === true && temTombamento !== true) {
-    p.ca_maximo_aplicavel = base.ca_maximo_em_eixo || base.ca_maximo * 1.5
-    p.bonus_aplicado = 'Lei 17.975/2023: +50% (ZEIS em área de influência de Eixo, sem tombamento)'
+  if (q.ca_max_ehis === null) {
+    p.alerta_ehis = 'Zona sem CA EHIS no Quadro 2 do Decreto — EHIS inviável ou a validar caso a caso'
+  }
+
+  // Trava de lote pequeno (ZEIS — notas e/f/g do Quadro 2)
+  let caEhis = q.ca_max_ehis
+  if (q.trava_lote) {
+    p.trava_lote_pequeno = {
+      limite_m2: q.trava_lote.limite_m2,
+      ca_reduzido: q.trava_lote.ca_reduzido,
+      regra: `CA cai para ${q.trava_lote.ca_reduzido} se a área do lote (ou do bloco remembrado) for < ${q.trava_lote.limite_m2} m²`
+    }
+    if (typeof areaLoteM2 === 'number' && areaLoteM2 > 0) {
+      if (areaLoteM2 < q.trava_lote.limite_m2) {
+        caEhis = q.trava_lote.ca_reduzido
+        p.trava_lote_pequeno.aplicada = true
+        p.trava_lote_pequeno.dica_remembramento = `Remembrar lotes vizinhos até ≥ ${q.trava_lote.limite_m2} m² eleva o CA de ${q.trava_lote.ca_reduzido} para ${q.ca_max_ehis}`
+      } else {
+        p.trava_lote_pequeno.aplicada = false
+      }
+    }
+  }
+
+  // Bônus EZEIS em Eixo (Lei 17.975/23): quadra integralmente contida, sem vedações.
+  // A trava de lote pequeno prevalece: sem área mínima não há bônus.
+  const bonus = LEGISLACAO.bonus_ezeis_eixo_2024
+  const travado = p.trava_lote_pequeno && p.trava_lote_pequeno.aplicada === true
+  if (travado) {
+    p.ca_maximo_aplicavel = q.trava_lote.ca_reduzido
+    if (q.bonus_eixo_ca && emEixo === true) {
+      p.bonus_bloqueado = `Bônus EZEIS CA ${q.bonus_eixo_ca} indisponível enquanto a trava de lote pequeno vigorar — remembramento até ≥ ${q.trava_lote.limite_m2} m² destrava CA ${q.ca_max_ehis} e habilita o bônus`
+    }
+  } else if (q.bonus_eixo_ca && emEixo === true && temTombamento !== true) {
+    p.ca_maximo_aplicavel = q.bonus_eixo_ca
+    p.bonus_aplicado = `Lei 17.975/2023: EZEIS com CA ${q.bonus_eixo_ca} — condicionado a QUADRA INTEGRALMENTE CONTIDA no eixo (verificar geometria da quadra) e às vedações: ${bonus.vedacoes.join('; ')}`
   } else {
-    p.ca_maximo_aplicavel = base.ca_maximo
-    if (elegivel && temTombamento === true) p.bonus_bloqueado = 'Bônus +50% BLOQUEADO por tombamento/ZEPEC no lote'
-    else if (elegivel && emEixo !== true) p.bonus_nao_aplicado = 'Fora de área de influência de Eixo — sem bônus +50%'
+    p.ca_maximo_aplicavel = caEhis ?? q.ca_max_geral
+    if (q.bonus_eixo_ca && temTombamento === true) p.bonus_bloqueado = 'Bônus EZEIS CA 6 BLOQUEADO por tombamento/ZEPEC no lote'
+    else if (q.bonus_eixo_ca && emEixo !== true) p.bonus_nao_aplicado = 'Fora de área de influência de Eixo (raios 2024: 700 m estações / 400 m corredores) — sem bônus EZEIS'
   }
 
-  p.outorga = zeis ? 'ISENTA — Fs=0 (Decreto 63.728/2024)' :
-    'EHIS (≥80% HIS): ISENTA — Fs=0; demais usos: outorga padrão'
+  p.outorga = q.ca_max_ehis !== null
+    ? 'HIS: ISENTA — Fs=0 (Dec. 63.504/24 + 63.728/24); HMP: Fs=0,4'
+    : 'Outorga padrão da zona'
+  p.regras_gabarito_2024 = LEGISLACAO.regras_gabarito_2024
   return p
 }
 
@@ -259,7 +297,8 @@ async function contexto(req, res) {
   const temTomb = tombProps === undefined ? null : (tombProps !== null)
   const operacao = ouProps ? (ouProps.nm_operacao || ouProps.nome || ouProps.tx_nome || 'Operação urbana identificada') : (ouProps === null ? null : undefined)
 
-  const parametros = calcularParametros(sigla, emEixo === true, temTomb === true)
+  const areaLote = parseFloat(req.query.area) || undefined
+  const parametros = calcularParametros(sigla, emEixo === true, temTomb === true, areaLote)
 
   res.json({
     status: 'success',
@@ -289,4 +328,4 @@ async function camadas(req, res) {
   })
 }
 
-module.exports = { busca, lote, contexto, camadas }
+module.exports = { busca, lote, contexto, camadas, calcularParametros }

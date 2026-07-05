@@ -5,6 +5,91 @@
 
 module.exports = {
 
+  // ═══ QUADRO CONSOLIDADO 2024 — validado pelo usuário em 05/07/2026 ═══
+  // Fusão: Quadro 3 LPUOS (Lei 16.402/2016, quadros substituídos pela Lei
+  // 18.081/2024, Mapa 1 da Lei 18.177/2024) × Quadro 2 do Decreto 63.728/2024
+  // (CA específico EHIS/EHMP). conf: 'duplo' = confirmado por duas fontes;
+  // 'unico' = fonte única, sinalizar no laudo para conferência no anexo oficial.
+  quadro_zonas_2024: {
+    ZEU:      { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 4,   ca_max_ehis: 6,    ca_max_ehmp: 5,     to: '0,85/0,70', gabarito_m: null, recuos: 'NA / NA / 3m', cota_parte_m2: 20, conf: 'duplo',
+                condicoes: ['CA geral cai para 2 se lote < 1.000 m² (L18.081/24) — não confirmado se a trava alcança EHIS', 'Envoltória de vila: gabarito 28 m'] },
+    ZEUa:     { ca_min: null, ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,70/0,50', gabarito_m: 28, recuos: 'NA / NA / 3m', cota_parte_m2: 40, conf: 'unico',
+                condicoes: ['Não se aplica a lote com >50% APP ou Mata Atlântica (L18.177/24)'] },
+    ZEUP:     { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,85/0,70', gabarito_m: 28, recuos: 'NA / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                condicoes: ['Eixo ativado (art. 83 PDE): assume parâmetros de ZEU, inclusive EHIS 6'] },
+    ZEUPa:    { ca_min: null, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: 1.5,  ca_max_ehmp: 1.25,  to: '0,70/0,50', gabarito_m: 28, recuos: 'NA / NA / 3m', cota_parte_m2: null, conf: 'unico',
+                condicoes: ['Ativação → parâmetros de ZEUa'] },
+    ZEM:      { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,85/0,70', gabarito_m: 28, recuos: 'NA / NA / 3m', cota_parte_m2: 20, conf: 'duplo',
+                condicoes: ['§1º art. 8º LPUOS: EHIS 6 / EHMP 5 com gabarito dispensado', 'Decurso do prazo das leis dos Arcos: CA geral 4'] },
+    ZEMP:     { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,85/0,70', gabarito_m: 28, recuos: 'NA / NA / 3m', cota_parte_m2: 40, conf: 'duplo',
+                condicoes: ['§2º art. 8º LPUOS: EHIS 6 / EHMP 5 com gabarito dispensado'] },
+    ZC:       { ca_min: 0.3,  ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,85/0,70', gabarito_m: 48, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                condicoes: ['Gabarito até 60 m com acesso por via ≥ 12 m (L18.081/24 — conferir redação)'] },
+    ZCa:      { ca_min: null, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: 1.5,  ca_max_ehmp: 1.25,  to: '0,70/0,70', gabarito_m: 20, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico' },
+    'ZC-ZEIS':{ ca_min: 0.5,  ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,85/0,70', gabarito_m: null, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo' },
+    ZM:       { ca_min: 0.3,  ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,85/0,70', gabarito_m: 28, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                condicoes: ['Gabarito até 48 m com acesso por via ≥ 12 m; 28 m mantido no miolo junto a vilas (vetos 2024)'] },
+    ZMa:      { ca_min: null, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: 1.5,  ca_max_ehmp: 1.25,  to: '0,70/0,50', gabarito_m: 15, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico' },
+    ZMIS:     { ca_min: 0.3,  ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,85/0,70', gabarito_m: 28, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico' },
+    ZMISa:    { ca_min: null, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: 1.5,  ca_max_ehmp: 1.25,  to: '0,70/0,50', gabarito_m: 15, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico' },
+    'ZCOR-1': { ca_min: 0.05, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: null, ca_max_ehmp: null,  to: '0,50/0,50', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico',
+                condicoes: ['Ausente do Quadro 2 do Decreto EHIS — CA EHIS a validar', 'Gabarito até 15 m só residencial, recuo fundo 5 m'] },
+    'ZCOR-2': { ca_min: 0.05, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: 1.5,  ca_max_ehmp: 1.25,  to: '0,50/0,50', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                condicoes: ['Gabarito até 15 m só residencial, recuo fundo 5 m (L18.081/24)'] },
+    'ZCOR-3': { ca_min: 0.05, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: 1.5,  ca_max_ehmp: 1.25,  to: '0,50/0,50', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                condicoes: ['Gabarito até 15 m só residencial, recuo fundo 5 m (L18.081/24)'] },
+    ZCORa:    { ca_min: null, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: 1.5,  ca_max_ehmp: 1.25,  to: '0,50/0,50', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico',
+                condicoes: ['Remembramento com lote ZER: respeitar gabarito da ZER'] },
+    'ZEIS-1': { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 2.5, ca_max_ehis: 2.5,  ca_max_ehmp: 2.5,   to: '0,85/0,70', gabarito_m: null, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                trava_lote: { limite_m2: 1000, ca_reduzido: 2 },
+                condicoes: ['Até CA 4 via plano de urbanização (conselho gestor ZEIS + CAEHIS — nota k)', 'Confrontante com ZER: gabarito 15 m na faixa de 20 m'] },
+    'ZEIS-2': { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 4,   ca_max_ehis: 4,    ca_max_ehmp: 4,     to: '0,85/0,70', gabarito_m: null, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                trava_lote: { limite_m2: 1000, ca_reduzido: 2 }, bonus_eixo_ca: 6 },
+    'ZEIS-3': { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 4,   ca_max_ehis: 4,    ca_max_ehmp: 4,     to: '0,85/0,70', gabarito_m: null, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                trava_lote: { limite_m2: 500, ca_reduzido: 2 }, bonus_eixo_ca: 6 },
+    'ZEIS-4': { ca_min: null, ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 2,    ca_max_ehmp: 2,     to: '0,70/0,50', gabarito_m: null, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                trava_lote: { limite_m2: 1000, ca_reduzido: 1 },
+                condicoes: ['Até CA 4 via plano de urbanização (nota k)'] },
+    'ZEIS-5': { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 4,   ca_max_ehis: 4,    ca_max_ehmp: 4,     to: '0,85/0,70', gabarito_m: null, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                trava_lote: { limite_m2: 1000, ca_reduzido: 2 }, bonus_eixo_ca: 6 },
+    'ZDE-1':  { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,70/0,70', gabarito_m: 28, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico' },
+    'ZDE-2':  { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 2,   ca_max_ehis: 3,    ca_max_ehmp: 2.5,   to: '0,70/0,50', gabarito_m: 28, recuos: '5m / 3m / 3m', cota_parte_m2: null, conf: 'duplo' },
+    'ZPI-1':  { ca_min: 0.5,  ca_bas: 1, ca_max_geral: 1.5, ca_max_ehis: 2.25, ca_max_ehmp: 1.875, to: '0,70/0,70', gabarito_m: 28, recuos: '5m / 3m / 3m', cota_parte_m2: null, conf: 'duplo' },
+    'ZPI-2':  { ca_min: null, ca_bas: 1, ca_max_geral: 1.5, ca_max_ehis: 2.25, ca_max_ehmp: 1.875, to: '0,50/0,30', gabarito_m: 28, recuos: '5m / 3m / 3m', cota_parte_m2: null, conf: 'duplo' },
+    'ZER-1':  { ca_min: 0.05, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: null, ca_max_ehmp: null,  to: '0,50/0,50', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                condicoes: ['EHIS inviável/restrito; restrições convencionais de loteamento prevalecem'] },
+    'ZER-2':  { ca_min: 0.05, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: null, ca_max_ehmp: null,  to: '0,50/0,50', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico' },
+    ZERa:     { ca_min: null, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: null, ca_max_ehmp: null,  to: '0,50/0,50', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico' },
+    ZPR:      { ca_min: 0.05, ca_bas: 1, ca_max_geral: 1,   ca_max_ehis: null, ca_max_ehmp: null,  to: '0,50/0,50', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo' },
+    ZOE:      { ca_min: null, ca_bas: null, ca_max_geral: null, ca_max_ehis: null, ca_max_ehmp: null, to: null, gabarito_m: null, recuos: null, cota_parte_m2: null, conf: 'duplo',
+                condicoes: ['Parâmetros definidos por lei/plano de ocupação específico (nota do Quadro 3)'] },
+    ZPDS:     { ca_min: null, ca_bas: 1,   ca_max_geral: 1,   ca_max_ehis: null, ca_max_ehmp: null, to: '0,35/0,25', gabarito_m: 20, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico',
+                condicoes: ['Taxa de permeabilidade mínima 0,50'] },
+    ZPDSr:    { ca_min: null, ca_bas: 0.2, ca_max_geral: 0.2, ca_max_ehis: null, ca_max_ehmp: null, to: '0,20/0,15', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'unico',
+                condicoes: ['Taxa de permeabilidade mínima 0,70'] },
+    ZEPAM:    { ca_min: null, ca_bas: 0.1, ca_max_geral: 0.1, ca_max_ehis: null, ca_max_ehmp: null, to: '0,10/0,10', gabarito_m: 10, recuos: '5m / NA / 3m', cota_parte_m2: null, conf: 'duplo',
+                condicoes: ['TP mínima 0,90; perímetros ampliados no Mapa 1/2024'] },
+    ZEP:      { ca_min: null, ca_bas: null, ca_max_geral: null, ca_max_ehis: null, ca_max_ehmp: null, to: null, gabarito_m: null, recuos: null, cota_parte_m2: null, conf: 'duplo',
+                condicoes: ['Parques/UCs — parâmetros por plano de manejo; Quota Ambiental não se aplica (PA 13)'] }
+  },
+
+  regras_gabarito_2024: [
+    'ZM 28→48 m e ZC 48→60 m quando o lote tem acesso de veículos por via ≥ 12 m de largura (Lei 18.081/24 — conferir redação exata do artigo)',
+    'ZCOR-2/3/a: gabarito 10→15 m exclusivamente para uso residencial, com recuo de fundo mínimo 5 m (Lei 18.081/24)',
+    'Envoltória de vilas (faixa de 20 m): trava de 28 m em ZEU/ZEUP/ZEM/ZEMP e 15 m nas demais zonas — vale mesmo onde o gabarito é livre (Lei 18.081/24)',
+    'Lote confrontante com ZER (inclusive ZEIS): gabarito 15 m na faixa de 20 m paralela à via de frente para a ZER (Lei 18.081/24)',
+    'Terrenos com declividade/lençol freático (hipótese específica): gabarito contado a partir de 6 m acima do perfil natural (Lei 18.177/24)'
+  ],
+
+  bonus_ezeis_eixo_2024: {
+    zonas: ['ZEIS-2', 'ZEIS-3', 'ZEIS-5'],
+    ca_resultante: 6,
+    requisito_geometrico: 'QUADRA INTEGRALMENTE CONTIDA em área de influência de Eixo de Estruturação (raios ampliados 2024: 700 m de estações de trem/metrô/monotrilho; 400 m de corredores de ônibus/VLT)',
+    exclusivo_para: 'Licenciamento de EZEIS',
+    vedacoes: ['Sobreposição com área de interesse de preservação cultural (tombamento/ZEPEC)', 'Sobreposição com área de preservação ambiental', 'Macrozona de Proteção e Recuperação Ambiental'],
+    base_legal: 'Lei 17.975/2023 + Lei 18.157/2024'
+  },
+
   definicoes_renda: {
     HIS_1: {
       descricao: 'Habitação de Interesse Social – faixa 1',
