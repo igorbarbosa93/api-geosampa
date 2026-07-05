@@ -8,7 +8,10 @@ module.exports = async (req, res) => {
   // Triangulação oficial vinda do mapa (JSON string de /geosampa/contexto)
   let contexto = null
   if (req.body && req.body.contexto) {
-    try { contexto = JSON.parse(req.body.contexto) } catch { contexto = null }
+    try { contexto = JSON.parse(req.body.contexto) } catch (e) {
+      console.error('[viabilidade] contexto recebido mas inválido (JSON.parse falhou) — análise seguirá SEM dados oficiais:', String(req.body.contexto).slice(0, 120))
+      contexto = null
+    }
   }
 
   // Imagem OU localização (SQL/endereço/coordenadas vindos do mapa)
