@@ -90,6 +90,40 @@ module.exports = {
     base_legal: 'Lei 17.975/2023 + Lei 18.157/2024'
   },
 
+  // ═══ Régua de pavimentos por gabarito (regra do usuário: 28m = T+9; 48m = T+17) ═══
+  regua_pavimentos: {
+    pe_direito_medio_m: 2.65,
+    formula: 'pavimentos_totais = piso(gabarito / 2,65); pavimentos_tipo = totais − 1 (térreo)',
+    exemplos: { '10m': 'T+2', '15m': 'T+4', '20m': 'T+6', '28m': 'T+9', '48m': 'T+17', 'livre': 'sem limite — altura definida por cota-parte, CA e estudo de massa' }
+  },
+
+  // ═══ Formatos de implantação padrão Tenda (estimativas de mercado — ajustáveis) ═══
+  implantacao_tenda: {
+    fonte: 'Parâmetros típicos de produto MCMV/Tenda (parede de concreto, sem subsolo) — estimativas de mercado para estudo de massa preliminar',
+    formatos: {
+      torre_h: { nome: 'Torre H', aptos_por_pav: 8, footprint_m: [22, 22], area_pav_m2: 420, unidade_media_m2: 41, circulacao: '1 escada + 1-2 elevadores no núcleo' },
+      lamina:  { nome: 'Lâmina', aptos_por_pav: 4, footprint_m: [28, 12], area_pav_m2: 300, unidade_media_m2: 43, circulacao: 'escada + elevador em extremidade' },
+      lamina_dupla: { nome: 'Lâmina dupla', aptos_por_pav: 6, footprint_m: [34, 13], area_pav_m2: 400, unidade_media_m2: 42, circulacao: 'núcleo central' }
+    },
+    premissas: [
+      'Térreo: pilotis parcial + vagas descobertas + lazer — Tenda evita subsolo (custo)',
+      'Espaçamento mínimo entre torres: ~1/6 da altura, mínimo 6 m (insolação/ventilação)',
+      'Área de lazer/condominial: ~10-15% do terreno',
+      'Acessos e viário interno: ~12-18% do terreno em condomínios multi-torre'
+    ]
+  },
+
+  // ═══ Classificação de taludes por declividade (curvas de nível GeoSampa) ═══
+  taludes: {
+    classes: [
+      { faixa: '< 5%',    classe: 'plano',      impacto: 'implantação direta, movimento de terra mínimo' },
+      { faixa: '5–15%',   classe: 'moderado',   impacto: 'platôs escalonados entre torres; taludes gramados ou muretas baixas; custo moderado' },
+      { faixa: '15–30%',  classe: 'acentuado',  impacto: 'contenções (muros de arrimo/terra armada), garagens semi-enterradas; custo relevante — sondagem obrigatória' },
+      { faixa: '> 30%',   classe: 'critico',    impacto: 'restrições do PDE a movimento de terra; risco geológico; viabilidade EHIS comprometida — camada Risco do GeoSampa obrigatória' }
+    ],
+    nota: 'Declividade estimada por amostragem das curvas de nível (MDC/GeoSampa) — confirmar com levantamento planialtimétrico'
+  },
+
   definicoes_renda: {
     HIS_1: {
       descricao: 'Habitação de Interesse Social – faixa 1',

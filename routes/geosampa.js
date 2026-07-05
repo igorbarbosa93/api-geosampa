@@ -106,7 +106,9 @@ const LAYER_CANDIDATES = {
   operacao: (process.env.GEOSAMPA_OU_LAYERS ||
     'geoportal:operacao_urbana,geoportal:operacoes_urbanas,geoportal:piu_perimetro').split(','),
   tombamento: (process.env.GEOSAMPA_TOMB_LAYERS ||
-    'geoportal:tombamento,geoportal:bens_tombados,geoportal:zepec').split(',')
+    'geoportal:tombamento,geoportal:bens_tombados,geoportal:zepec').split(','),
+  topografia: (process.env.GEOSAMPA_TOPO_LAYERS ||
+    'geoportal:curva_de_nivel,geoportal:curvas_nivel,geoportal:altimetria').split(',')
 }
 const layerCache = {}
 
@@ -119,7 +121,8 @@ const DISCOVERY_PATTERNS = {
   zona:       [/18[_.-]?177/i, /perimetros?[_-]?d?a?s?[_-]?zonas/i, /zonea/i, /zona[_-]?uso/i, /lei[_-]?16402/i],
   eixo:       [/eixo/i],
   operacao:   [/opera[cç][aã]o[_-]?urbana/i, /\bpiu\b/i, /\bouc\b/i],
-  tombamento: [/tomb/i, /zepec/i, /patrimonio/i]
+  tombamento: [/tomb/i, /zepec/i, /patrimonio/i],
+  topografia: [/curva[_-]?d?e?[_-]?nivel/i, /altimetr/i, /\bmdt\b/i, /\bmdc\b/i, /decliv/i, /topograf/i]
 }
 // Ordena candidatos descobertos pela prioridade dos padrões (18.177 primeiro)
 function rankByPatterns(names, patterns) {
@@ -285,12 +288,40 @@ async function contexto(req, res) {
     return res.status(400).json({ status: 'erro', mensagem: 'Parâmetros lat e lng são obrigatórios.' })
   }
 
-  const [zonaProps, eixoProps, ouProps, tombProps] = await Promise.all([
+  // Amostragem topográfica: centro + 4 pontos a ~35 m (para declividade)
+  const OFF = 0.00032
+  const topoPts = [[lat, lng], [lat + OFF, lng], [lat - OFF, lng], [lat, lng + OFF], [lat, lng - OFF]]
+
+  const [zonaProps, eixoProps, ouProps, tombProps, ...topoProps] = await Promise.all([
     featureAtPoint('zona', lat, lng),
     featureAtPoint('eixo', lat, lng),
     featureAtPoint('operacao', lat, lng),
-    featureAtPoint('tombamento', lat, lng)
+    featureAtPoint('tombamento', lat, lng),
+    ...topoPts.map(([la, lo]) => featureAtPoint('topografia', la, lo))
   ])
+
+  // Extrai cota altimétrica de cada amostra e estima a declividade
+  const extrairCota = props => {
+    if (!props) return null
+    for (const k of ['cota', 'elevacao', 'altitude', 'nm_cota', 'cd_cota', 'z']) {
+      const v = parseFloat(props[k]); if (!isNaN(v)) return v
+    }
+    for (const v of Object.values(props)) {
+      const n = parseFloat(v); if (!isNaN(n) && n > 400 && n < 1300) return n // faixa plausível de SP (~430-1.100 m)
+    }
+    return null
+  }
+  const cotas = topoProps.map(extrairCota).filter(c => c !== null)
+  let topografia = null
+  if (topoProps.every(p => p === undefined)) {
+    topografia = { status: 'camada indisponível' }
+  } else if (cotas.length >= 2) {
+    const amp = Math.max(...cotas) - Math.min(...cotas)
+    const declividade = Math.round((amp / 70) * 1000) / 10 // % sobre ~70 m de vão amostral
+    topografia = { cotas_amostradas_m: cotas, amplitude_m: amp, declividade_estimada_pct: declividade }
+  } else {
+    topografia = { status: 'sem curvas no raio amostrado — terreno possivelmente plano ou camada esparsa', cotas_amostradas_m: cotas }
+  }
 
   const sigla = extrairSigla(zonaProps)
   const emEixo = eixoProps === undefined ? null : (eixoProps !== null)
@@ -308,6 +339,7 @@ async function contexto(req, res) {
       em_area_influencia_eixo: emEixo,
       operacao_urbana: operacao === undefined ? 'camada indisponível' : operacao,
       tombamento_no_ponto: temTomb,
+      topografia,
       parametros_calculados: parametros,
       fonte: 'GeoSampa WMS (GetFeatureInfo) + base legislação 2016-2025',
       ressalva: 'Confirmação documental obrigatória: Ficha Técnica do lote (SQL) na SMUL e certidões — camadas WMS podem ter defasagem de publicação'

@@ -1,4 +1,5 @@
 const { analyzeViability } = require('../services/claude')
+const { estudoDeMassa } = require('../services/implantacao')
 
 const SUPPORTED_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
@@ -11,6 +12,25 @@ module.exports = async (req, res) => {
     try { contexto = JSON.parse(req.body.contexto) } catch (e) {
       console.error('[viabilidade] contexto recebido mas inválido (JSON.parse falhou) — análise seguirá SEM dados oficiais:', String(req.body.contexto).slice(0, 120))
       contexto = null
+    }
+  }
+
+  // Estudo de massa determinístico (formatos Tenda) quando há área + parâmetros
+  if (contexto && contexto.area_total_m2 && contexto.lotes && contexto.lotes[0]) {
+    const tri = contexto.lotes[0].triangulacao || {}
+    const parametros = tri.parametros_calculados
+    const decliv = tri.topografia && typeof tri.topografia.declividade_estimada_pct === 'number'
+      ? tri.topografia.declividade_estimada_pct : undefined
+    if (parametros) {
+      try {
+        contexto.estudo_massa = estudoDeMassa({
+          areaTerrenoM2: contexto.area_total_m2,
+          parametros,
+          declividadePct: decliv
+        })
+      } catch (e) {
+        console.error('[viabilidade] estudo de massa falhou:', e.message)
+      }
     }
   }
 

@@ -192,6 +192,32 @@
   .combo{ margin-top:20px; padding:16px 18px; background:var(--green-l); border-left:3px solid var(--green); border-radius:var(--r); font-size:13px; color:var(--hi); }
   .combo b{ color:var(--green); }
 
+  /* Gráfico empilhado de CA */
+  .stackbar{ display:flex; height:34px; border-radius:5px; overflow:hidden; margin:14px 0 8px; }
+  .stackbar .seg{ display:flex; align-items:center; justify-content:center; font-family:var(--fm); font-size:10.5px; font-weight:700; color:#fff; min-width:34px; white-space:nowrap; }
+  .stackbar .seg.pot{ background-image:repeating-linear-gradient(45deg, rgba(255,255,255,.25) 0 6px, transparent 6px 12px); }
+  .stacklegend{ display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--mid); }
+  .stacklegend span{ display:inline-flex; align-items:center; gap:6px; }
+  .stacklegend i{ width:12px; height:12px; border-radius:3px; display:inline-block; }
+
+  /* Tabela enxuta de benefícios */
+  table.opp-tbl{ border-collapse:collapse; width:100%; font-size:12.5px; margin-top:6px; }
+  .opp-tbl th{ font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); text-align:left; padding:7px 10px; border-bottom:2px solid var(--raised); }
+  .opp-tbl td{ padding:8px 10px; border-bottom:1px solid var(--raised); vertical-align:top; }
+  .opp-tbl td.mec{ font-weight:700; }
+  .opp-tbl td.lei{ font-family:var(--fm); font-size:10.5px; color:var(--teal); white-space:nowrap; }
+  .opp-tbl td.dca{ font-family:var(--fm); font-weight:700; color:var(--verm); white-space:nowrap; }
+  .opp-tbl td.custo{ font-family:var(--fm); font-size:11px; color:var(--green); }
+  .opp-tbl tr:last-child td{ border-bottom:none; }
+
+  /* Implantação */
+  table.impl-tbl{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  .impl-tbl th{ font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); text-align:left; padding:7px 10px; border-bottom:2px solid var(--raised); }
+  .impl-tbl td{ padding:8px 10px; border-bottom:1px solid var(--raised); font-family:var(--fm); font-size:12px; }
+  .impl-tbl td:first-child{ font-family:var(--ff); font-weight:700; }
+  .impl-tbl tr.rec td{ background:var(--verm-l); }
+  .talude-chip{ display:inline-block; font-size:11px; font-weight:700; padding:5px 11px; border-radius:3px; margin-top:10px; }
+
   details.det{ border:1px solid var(--border); border-radius:var(--r); margin-bottom:10px; background:var(--surf); box-shadow:var(--shadow); }
   details.det:hover{ border-color:var(--border2); }
   details.det summary{ padding:15px 20px; font-size:13px; font-weight:700; letter-spacing:-.1px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px; }
@@ -618,19 +644,66 @@ function renderReport(data) {
       <div class="acao">${esc(f.acao_recomendada || f.acao || '')}</div></div></div>`
   }).join('')
 
-  const opps = (opp.estrategias_aplicaveis || []).filter(s => s.aplicavel_a_este_lote !== false).map(s => {
-    const via = ['alta','media','baixa'].includes(s.viabilidade) ? s.viabilidade : 'media'
-    const meta = []
-    if (s.ca_resultante) meta.push(`<span class="m-ca">CA ${esc(s.ca_resultante)}</span>`)
-    if (s.custo_outorga_estimado) meta.push(`<span class="m-custo">${esc(s.custo_outorga_estimado)}</span>`)
-    if (s.prazo_critico) meta.push(`<span class="m-prazo">⏱ ${esc(s.prazo_critico)}</span>`)
-    return `<div class="opp">
-      <div class="opp-head"><b>${esc(s.mecanismo_nome || s.mecanismo_id)}</b><span class="via ${via}">${via}</span></div>
-      <div class="opp-lei">${esc(s.lei_referencia || '')}</div>
-      <div class="opp-desc">${esc(s.motivo_aplicabilidade || s.requisito_principal || '')}</div>
-      <div class="opp-meta">${meta.join('')}</div>
+  // Tabela enxuta de benefícios de CA
+  const opps = (opp.estrategias_aplicaveis || []).filter(s => s.aplicavel_a_este_lote !== false).length ? `
+    <table class="opp-tbl">
+      <tr><th>Mecanismo</th><th>Base legal</th><th>Ganho</th><th>Custo</th><th>Viab.</th></tr>
+      ${(opp.estrategias_aplicaveis || []).filter(s => s.aplicavel_a_este_lote !== false).map(s => {
+        const via = ['alta','media','baixa'].includes(s.viabilidade) ? s.viabilidade : 'media'
+        return `<tr>
+          <td class="mec">${esc(s.mecanismo_nome || s.mecanismo_id)}${s.prazo_critico ? ` <span class="m-prazo" style="font-family:var(--fm);font-size:10px;">⏱ ${esc(String(s.prazo_critico).slice(0,40))}</span>` : ''}</td>
+          <td class="lei">${esc((s.lei_referencia || '').split('+')[0].trim())}</td>
+          <td class="dca">${esc(s.ca_resultante || '—')}</td>
+          <td class="custo">${esc((s.custo_outorga_estimado || '—').slice(0, 30))}</td>
+          <td><span class="via ${via}">${via}</span></td>
+        </tr>`
+      }).join('')}
+    </table>` : ''
+
+  // Gráfico empilhado da composição do CA (determinístico, da triangulação)
+  const p0 = selecoes[0]?.contexto?.parametros_calculados
+  let stackHtml = ''
+  if (p0 && typeof p0.ca_maximo_aplicavel === 'number') {
+    const segs = []
+    const bas = p0.ca_basico || 1
+    segs.push({ v: bas, cor: '#475569', label: 'CA básico', t: bas })
+    if (p0.ca_maximo_geral > bas) segs.push({ v: p0.ca_maximo_geral - bas, cor: '#0369A1', label: 'Até CA máx. da zona', t: p0.ca_maximo_geral })
+    if (p0.ca_maximo_ehis > p0.ca_maximo_geral) segs.push({ v: p0.ca_maximo_ehis - p0.ca_maximo_geral, cor: '#15803D', label: 'Adicional EHIS (Dec. 63.728/24)', t: p0.ca_maximo_ehis })
+    if (p0.ca_maximo_aplicavel > Math.max(p0.ca_maximo_ehis || 0, p0.ca_maximo_geral || 0)) {
+      segs.push({ v: p0.ca_maximo_aplicavel - Math.max(p0.ca_maximo_ehis || 0, p0.ca_maximo_geral || 0), cor: '#D8232A', label: 'Bônus Eixo (L17.975/23)', t: p0.ca_maximo_aplicavel })
+    }
+    const fru = Math.round(p0.ca_maximo_aplicavel * 0.1 * 10) / 10
+    segs.push({ v: fru, cor: '#C2410C', label: `Fruição pública +10% (potencial)`, t: Math.round((p0.ca_maximo_aplicavel + fru) * 10) / 10, pot: true })
+    const total = segs.reduce((s, x) => s + x.v, 0)
+    stackHtml = `<div class="card">
+      <div class="card-eyebrow">Composição do potencial construtivo</div>
+      <div class="stackbar">${segs.map(s => `<div class="seg${s.pot ? ' pot' : ''}" style="flex:${s.v};background:${s.cor}" title="${esc(s.label)}">${String(s.t).replace('.',',')}</div>`).join('')}</div>
+      <div class="stacklegend">${segs.map(s => `<span><i style="background:${s.cor}"></i>${esc(s.label)}</span>`).join('')}</div>
+      <div style="font-size:11.5px;color:var(--sub);margin-top:10px;">+ áreas não computáveis do Dec. 63.728/24 (varandas, circulação, lazer): <b>+12–18% de área construída real</b> sem consumir CA — fora da escala do gráfico.</div>
     </div>`
-  }).join('')
+  }
+
+  // Implantação preliminar (formatos Tenda + taludes)
+  const impl = a.implantacao_preliminar
+  let implHtml = ''
+  if (impl && (impl.opcoes_implantacao || []).length) {
+    const tal = impl.taludes
+    const talCor = tal ? (tal.classe === 'plano' ? ['#15803D','#E6F3EC'] : tal.classe === 'moderado' ? ['#C2410C','#FBF3DF'] : ['#A3272D','#FBEAEB']) : null
+    implHtml = `<div class="card">
+      <div class="card-eyebrow">Implantação preliminar — formatos padrão Tenda</div>
+      <table class="impl-tbl">
+        <tr><th>Formato</th><th>Torres</th><th>Pavimentos</th><th>Aptos/pav</th><th>Unidades</th><th>Limitador</th></tr>
+        ${impl.opcoes_implantacao.map((o, i) => `<tr${i === 0 ? ' class="rec"' : ''}>
+          <td>${esc(o.formato)}${i === 0 ? ' ★' : ''}</td><td>${o.torres}</td><td>${esc(o.pavimentos)}</td>
+          <td>${o.aptos_por_pav}</td><td><b>${o.unidades_estimadas}</b></td><td style="font-family:var(--ff);font-size:11px;color:var(--sub);">${esc(o.limitador)}</td>
+        </tr>`).join('')}
+      </table>
+      <div style="font-size:11.5px;color:var(--sub);margin-top:10px;">Gabarito: <b>${esc(impl.gabarito || '')}</b> · Área implantável ≈ ${(impl.area_implantavel_m2 || 0).toLocaleString('pt-BR')} m²</div>
+      ${tal && tal.classe ? `<span class="talude-chip" style="color:${talCor[0]};background:${talCor[1]}">Taludes: ${esc(tal.classe)} (${tal.declividade_estimada_pct}%) — ${esc(tal.impacto || '')}</span>` : ''}
+      ${impl.narrativa ? `<div style="font-size:12.5px;color:var(--mid);margin-top:10px;">${esc(impl.narrativa)}</div>` : ''}
+      <div class="map-note">${esc(impl.fonte || '')}</div>
+    </div>`
+  }
 
   const blockers = (opp.bloqueadores_identificados || []).map(b =>
     `<div class="flag"><span class="sev high">bloqueio</span>
@@ -687,6 +760,9 @@ function renderReport(data) {
       <p class="summary">${esc(data.mensagem || '')}</p>
     </div>
 
+    ${stackHtml}
+    ${implHtml}
+
     ${hasImgOverlays ? `
     <div class="card">
       <div class="card-eyebrow">Manchas de incidência sobre o lote</div>
@@ -726,6 +802,7 @@ function renderReport(data) {
       L.geoJSON(p.toGeoJSON(), { style: { color: '#D8232A', weight: 3, fillColor: '#D8232A', fillOpacity: .15 } })
     )).addTo(rmap)
     rmap.fitBounds(g.getBounds(), { maxZoom: 18, padding: [24, 24] })
+    if (impl && impl.recomendada) desenharTorres(rmap, selPolys, impl.recomendada)
   }
 }
 
@@ -754,6 +831,72 @@ function drawOverlays(ov) {
     ).join('')
   }
   if (uploadedImage.complete) render(); else uploadedImage.onload = render
+}
+
+// ─── Encaixe esquemático das torres Tenda na poligonal do lote ───
+function desenharTorres(rmap, selPolys, rec) {
+  // Une os anéis externos de todos os lotes selecionados em lista de vértices [lat,lng]
+  const rings = selPolys.map(p => {
+    const gj = p.toGeoJSON()
+    const f = gj.features ? gj.features[0] : gj
+    const c = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0]
+    return c.map(([lng, lat]) => [lat, lng])
+  })
+  if (!rings.length) return
+
+  // Projeção local em metros ao redor do centróide
+  const all = rings.flat()
+  const c0 = [all.reduce((s, p) => s + p[0], 0) / all.length, all.reduce((s, p) => s + p[1], 0) / all.length]
+  const mLat = 111320, mLng = 111320 * Math.cos(c0[0] * Math.PI / 180)
+  const toM = ([la, lo]) => [(lo - c0[1]) * mLng, (la - c0[0]) * mLat]
+  const toLL = ([x, y]) => [c0[0] + y / mLat, c0[1] + x / mLng]
+  const ringsM = rings.map(r => r.map(toM))
+
+  const inside = (pt, ring) => {
+    let ok = false
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j]
+      if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi) ok = !ok
+    }
+    return ok
+  }
+  const insideAny = pt => ringsM.some(r => inside(pt, r))
+
+  const [fw, fh] = rec.footprint_torre_m
+  const gap = 6, recuo = 5
+  const W2 = fw / 2 + recuo, H2 = fh / 2 + recuo
+
+  // Ângulo: acompanha o lado mais longo da poligonal do primeiro lote
+  let ang = 0, maxLen = 0
+  const r0 = ringsM[0]
+  for (let i = 0; i < r0.length - 1; i++) {
+    const dx = r0[i+1][0] - r0[i][0], dy = r0[i+1][1] - r0[i][1]
+    const len = dx*dx + dy*dy
+    if (len > maxLen) { maxLen = len; ang = Math.atan2(dy, dx) }
+  }
+  const cos = Math.cos(ang), sin = Math.sin(ang)
+  const rot = ([x, y]) => [x * cos - y * sin, y * cos + x * sin]
+
+  // Varre grade no referencial rotacionado e valida os 4 cantos + centro
+  const placed = []
+  const R = 90 // raio de busca em metros
+  for (let gy = -R; gy <= R && placed.length < rec.torres; gy += fh + gap) {
+    for (let gx = -R; gx <= R && placed.length < rec.torres; gx += fw + gap) {
+      const corners = [[-W2, -H2], [W2, -H2], [W2, H2], [-W2, H2], [0, 0]]
+        .map(([dx, dy]) => rot([gx + dx, gy + dy]))
+      if (corners.every(insideAny)) {
+        const rect = [[-fw/2, -fh/2], [fw/2, -fh/2], [fw/2, fh/2], [-fw/2, fh/2]]
+          .map(([dx, dy]) => toLL(rot([gx + dx, gy + dy])))
+        placed.push(rect)
+      }
+    }
+  }
+
+  placed.forEach((rect, i) => {
+    L.polygon(rect, { color: '#F8FAFC', weight: 2, fillColor: '#1E293B', fillOpacity: .75, dashArray: null })
+      .addTo(rmap)
+      .bindTooltip(`${rec.formato} ${i + 1} · ${rec.pavimentos} · ${rec.aptos_por_pav} aptos/pav`, { direction: 'center', className: 'torre-tip' })
+  })
 }
 
 function drawPoly(ctx, pts, W, H, fill, stroke, lw, dash) {
