@@ -1,41 +1,43 @@
-// CA PRIVATIVO POTENCIAL (EHIS/EZEIS) — porte fiel do modelo da especialista
-// (planilha CA_PRIVATIVO_POTENCIAL_7.xlsx, abas BASE ZONEAMENTO / PIU JURIBATUBA).
-// Empilha benefícios de área NÃO COMPUTÁVEL sobre o CA máximo EHIS da zona.
-// status de cada mecanismo preenchido após verificação jurídica.
+// CA PRIVATIVO POTENCIAL (EHIS/EZEIS) — modelo da especialista
+// (CA_PRIVATIVO_POTENCIAL_7.xlsx) verificado contra a legislação em 05/07/2026.
+//
+// VEREDITO JURÍDICO (pesquisa com fontes SMUL/Secovi/Machado Meyer/Sbarra):
+// - Base dos acréscimos: PDE Lei 16.050/2014, art. 60, I, alíneas "c","d","e"
+//   (redação Lei 17.975/2023), regulamentado pelo Decreto 63.728/2024, que
+//   admite aplicação COMBINADA das alíneas em EZEIS (somadas ao CA da zona).
+// - O Quadro 2 do Dec. 63.728 JÁ EMBUTE a alínea "c" (+50% p/ HIS) nas zonas
+//   comuns (coluna EHIS = 1,5× o CA geral). Em ZEIS o quadro dá CA 4 "seco"
+//   e as alíneas c/d somam por fora — estrutura da planilha é coerente.
+// - TETO LEGAL: áreas não computáveis limitadas a 59% da área construída
+//   total em EHIS/EHMP/EZEIS (LPUOS art. 62 / Dec. 63.728).
 
 const LEGISLACAO = require('../prompts/legislacao-his')
 
-// Fatores do modelo (linhas da planilha)
-const MODELO = {
-  // ZEIS apenas: tipologias com não computabilidade adicional dentro de EZEIS
-  zeis_hmp_25:  { fator: 0.25, rotulo: '+25% HMP não computável (EZEIS)' },
-  zeis_his2_50: { fator: 0.50, rotulo: '+50% HIS-2 não computável (EZEIS)' },
-  // Todas as zonas
-  his1_50:      { fator: 0.50, rotulo: '+50% HIS-1 não computável' },
-  cota_hmp_20:  { fator: 0.20, rotulo: '+20% Cota de Solidariedade (HMP/R2V)' },
-  // 10% incide sobre (CA + benefícios ZEIS + cota HMP), não sobre HIS-1 nem sobre si
-  cota_his2_10: { fator: 0.10, rotulo: '+10% Cota de Solidariedade (HIS-2)' }
-}
-
-// Fatores de conversão para área PRIVATIVA vendável (premissas de mercado, não lei)
 const EFICIENCIA_PRIVATIVA = { mercado: 0.75, tenda: 0.50 }
+const TETO_NAO_COMPUTAVEL = 0.59 // fração máxima da área construída TOTAL
 
-// PIU Arco Jurubatuba — "Dif CA Operação" por zona/setor (aba PIU JURIBATUBA)
-const PIU_JURUBATUBA_DIF_CA = {
-  ZEU: { T1: 2, T2: 1 },
-  ZEM: { T1: 1 }
+// PIU/AIU Arco Jurubatuba (Lei 17.965/23 + Lei 18.178/24 + Dec. 64.472/25)
+// CORREÇÃO da planilha: não existe "Dif CA +2"; o que existe é CA máx 4 nas
+// áreas T e, SOMENTE EM T1, manutenção expressa do acréscimo de 50% EHIS /
+// 25% EHMP. Setor "EIXO" não existe (categorias: T1, T2, Q1, Q2, Q3).
+const PIU_ACJ = {
+  setores_validos: ['T1', 'T2', 'Q1', 'Q2', 'Q3'],
+  ca_max_areas_T: 4,
+  acrescimo_ehis_50_confirmado_em: ['T1'],
+  nota: 'Em T1: EHIS chega a CA 6 computável (4 + 50% alínea c) + até 2 não computável (alínea e). "CA 8" como coeficiente NÃO existe — 8x só como área construída total (6 comp + 2 não comp), sujeita ao teto de 59%.'
 }
 
 function resolverZona(sigla) {
   const bruto = String(sigla || '').trim().replace(/^ZEIS[\s-]?(\d)/i, 'ZEIS-$1')
   if (LEGISLACAO.quadro_zonas_2024[bruto]) return bruto
-  // Busca case-insensitive (zonas com sufixo "a" minúsculo: ZEUa, ZMa, ZCORa…)
   const alvo = bruto.toUpperCase()
   for (const k of Object.keys(LEGISLACAO.quadro_zonas_2024)) {
     if (k.toUpperCase() === alvo) return k
   }
   return null
 }
+
+function r2(v) { return Math.round(v * 100) / 100 }
 
 function caPrivativoPotencial(sigla, opts = {}) {
   const norm = resolverZona(sigla)
@@ -44,61 +46,120 @@ function caPrivativoPotencial(sigla, opts = {}) {
   if (!caEhis) return null
 
   const isZeis = /^ZEIS/i.test(norm)
-  const difPiu = opts.piu_jurubatuba_setor && PIU_JURUBATUBA_DIF_CA[norm]
-    ? (PIU_JURUBATUBA_DIF_CA[norm][opts.piu_jurubatuba_setor] || 0) : 0
-  // Fiel à planilha: os benefícios percentuais incidem sobre o CA da ZONA;
-  // a diferença de CA da operação urbana entra como parcela fixa.
-  const ca = caEhis
-
   const camadas = []
-  camadas.push({ id: 'ca_zoneamento', rotulo: `CA máx. EHIS da zona (${norm})`, valor: caEhis })
-  if (difPiu) camadas.push({ id: 'dif_piu', rotulo: `Dif. CA Operação (PIU ACJ setor ${opts.piu_jurubatuba_setor})`, valor: difPiu, verificacao: 'a confirmar na lei do PIU' })
 
-  const hmp25 = isZeis ? ca * MODELO.zeis_hmp_25.fator : 0
-  const his2_50 = isZeis ? ca * MODELO.zeis_his2_50.fator : 0
-  const his1_50 = ca * MODELO.his1_50.fator
-  const cotaHmp20 = ca * MODELO.cota_hmp_20.fator
-  const cotaHis2_10 = (ca + hmp25 + his2_50 + cotaHmp20) * MODELO.cota_his2_10.fator
+  // 1) CA computável EHIS da zona (Quadro 2 Dec. 63.728 — alínea "c" já
+  //    embutida nas zonas comuns; em ZEIS o CA é "seco")
+  camadas.push({
+    id: 'ca_zoneamento', natureza: 'computavel', gratuito: true,
+    rotulo: `CA máx. EHIS da zona (${norm})`, valor: caEhis,
+    base_legal: 'Quadro 2 do Decreto 63.728/2024', status: 'CONFIRMADO'
+  })
 
-  if (hmp25) camadas.push({ id: 'zeis_hmp_25', rotulo: MODELO.zeis_hmp_25.rotulo, valor: r2(hmp25) })
-  if (his2_50) camadas.push({ id: 'zeis_his2_50', rotulo: MODELO.zeis_his2_50.rotulo, valor: r2(his2_50) })
-  camadas.push({ id: 'his1_50', rotulo: MODELO.his1_50.rotulo, valor: r2(his1_50) })
-  camadas.push({ id: 'cota_hmp_20', rotulo: MODELO.cota_hmp_20.rotulo, valor: r2(cotaHmp20) })
-  camadas.push({ id: 'cota_his2_10', rotulo: MODELO.cota_his2_10.rotulo, valor: r2(cotaHis2_10) })
+  // 2) ZEIS: alíneas "c" (+50% HIS) e "d" (+25% HMP) somam por fora
+  let acrescC = 0, acrescD = 0
+  if (isZeis) {
+    acrescC = caEhis * 0.5
+    camadas.push({
+      id: 'acrescimo_his_c', natureza: 'computavel', gratuito: true,
+      rotulo: '+50% CA p/ uso HIS (alínea c)', valor: r2(acrescC),
+      base_legal: 'PDE art. 60, I, "c" (Lei 17.975/23) + Dec. 63.728/24 (combinação em EZEIS)',
+      status: 'CONFIRMADO', condicao: 'Macroáreas MEM/MUC/MQU; gratuito p/ EHIS'
+    })
+    acrescD = caEhis * 0.25
+    camadas.push({
+      id: 'acrescimo_hmp_d', natureza: 'computavel', gratuito: false,
+      rotulo: '+25% CA p/ HMP (alínea d) — ONEROSO', valor: r2(acrescD),
+      base_legal: 'PDE art. 60, I, "d" (Lei 17.975/23)',
+      status: 'DIVERGENTE da planilha (não é não-computável: é acréscimo computável MEDIANTE OUTORGA)',
+      condicao: 'Pagamento de outorga onerosa sobre esta parcela'
+    })
+  }
 
-  const total = ca + difPiu + hmp25 + his2_50 + his1_50 + cotaHmp20 + cotaHis2_10
+  const caComputavel = caEhis + acrescC + acrescD
+
+  // 3) Alínea "e": HIS-1 não computável até 50% da ACC máxima permitida
+  const his1e = caComputavel * 0.5
+  camadas.push({
+    id: 'his1_nao_computavel_e', natureza: 'nao_computavel', gratuito: true,
+    rotulo: '+50% HIS-1 não computável (alínea e)', valor: r2(his1e),
+    base_legal: 'PDE art. 60, I, "e" (Lei 17.975/23); Dec. 63.728/24 art. 17',
+    status: 'CONFIRMADO', condicao: 'Teto: 50% da área construída computável máxima permitida'
+  })
+
+  // 4) Cota de Solidariedade in-loco: HIS = 10% da ACC, não computável
+  const cota10 = caComputavel * 0.10
+  camadas.push({
+    id: 'cota_solidariedade_10', natureza: 'nao_computavel', gratuito: true,
+    rotulo: '+10% Cota de Solidariedade in-loco (HIS)', valor: r2(cota10),
+    base_legal: 'PDE arts. 111-112 (Lei 17.975/23)',
+    status: 'CONFIRMADO com ressalva', condicao: 'Obrigatória apenas >20.000 m² de ACC; adesão facultativa abaixo; HIS produzida no próprio empreendimento'
+  })
+
+  // 5) §3º art. 112: +20% de ACC — ONEROSO (correção: planilha tratava como não computável)
+  const bonus20 = caComputavel * 0.20
+  camadas.push({
+    id: 'bonus_cota_20_oneroso', natureza: 'computavel', gratuito: false,
+    rotulo: '+20% ACC por atender a cota (§3º) — ONEROSO', valor: r2(bonus20),
+    base_legal: 'PDE art. 112, §3º + Decreto 63.504/2024',
+    status: 'DIVERGENTE da planilha (é área computável PAGA via outorga, não gratuita)',
+    condicao: 'Mediante pagamento de outorga onerosa'
+  })
+
+  // Teto de 59% de não computáveis sobre a área construída TOTAL
+  let naoComputavel = his1e + cota10
+  const computavelTotal = caComputavel + bonus20
+  const tetoNC = computavelTotal * TETO_NAO_COMPUTAVEL / (1 - TETO_NAO_COMPUTAVEL)
+  let tetoAplicado = false
+  if (naoComputavel > tetoNC) { naoComputavel = tetoNC; tetoAplicado = true }
+
+  const total = computavelTotal + naoComputavel
+
   return {
     zona: norm,
     ca_ehis_base: caEhis,
-    dif_ca_piu: difPiu || null,
+    ca_computavel_total: r2(computavelTotal),
+    ca_nao_computavel: r2(naoComputavel),
+    teto_59_aplicado: tetoAplicado,
     camadas,
     ca_privativo_total: r2(total),
-    ca_privativo_mercado: r2((ca + difPiu + cotaHis2_10 + cotaHmp20 + hmp25 + his2_50) * EFICIENCIA_PRIVATIVA.mercado),
+    ca_total_gratuito: r2(caEhis + acrescC + Math.min(his1e + cota10, tetoNC)),
+    parcela_onerosa: r2(acrescD + bonus20),
+    ca_privativo_mercado: r2(total * EFICIENCIA_PRIVATIVA.mercado),
     ca_privativo_tenda: r2(total * EFICIENCIA_PRIVATIVA.tenda),
-    nota_eficiencia: 'Fatores privativos (×0,75 mercado / ×0,50 Tenda) são premissas de eficiência de projeto, não parâmetros legais',
-    fonte: 'Modelo CA_PRIVATIVO_POTENCIAL_7 (especialista) sobre quadro consolidado 2024'
+    nota_eficiencia: 'Fatores ×0,75/×0,50 são premissas de eficiência de projeto (não lei). Teto legal: não computáveis ≤ 59% da área construída total; unidade HIS ≤ 70 m²',
+    piu_acj: opts.piu_jurubatuba_setor ? avaliarACJ(norm, opts.piu_jurubatuba_setor) : undefined,
+    fonte: 'Modelo da especialista (CA_PRIVATIVO_POTENCIAL_7) corrigido pela verificação jurídica de 05/07/2026'
   }
 }
 
-function r2(v) { return Math.round(v * 100) / 100 }
+function avaliarACJ(zona, setor) {
+  if (!PIU_ACJ.setores_validos.includes(setor)) {
+    return { setor, alerta: `Setor "${setor}" não existe na AIU-ACJ (categorias: T1, T2, Q1, Q2, Q3)` }
+  }
+  const t1 = setor === 'T1'
+  return {
+    setor,
+    ca_max_area_T: PIU_ACJ.ca_max_areas_T,
+    acrescimo_ehis_50: t1 ? 'CONFIRMADO em T1 (Dec. 64.472/25) — EHIS até CA 6 computável' : 'NÃO CONFIRMADO fora de T1',
+    nota: PIU_ACJ.nota,
+    base_legal: 'Lei 17.965/2023 + Lei 18.178/2024 + Decreto 64.472/2025'
+  }
+}
 
-// Autoteste: replica os totais da planilha (aba BASE ZONEAMENTO, linha 13)
+// Autoteste: valores do modelo CORRIGIDO (difere da planilha nos pontos divergentes)
 function autoteste() {
-  const esperado = {
-    ZEU: 10.92, ZEUa: 5.46, ZEUP: 5.46, ZEUPa: 2.73, ZEM: 5.46, ZEMP: 5.46,
-    ZC: 5.46, ZCa: 2.73, 'ZC-ZEIS': 5.46, 'ZCOR-2': 2.73, 'ZCOR-3': 2.73, ZCORa: 2.73,
-    ZM: 5.46, ZMa: 2.73, ZMIS: 5.46, ZMISa: 2.73,
-    'ZEIS-1': 6.61, 'ZEIS-2': 10.58, 'ZEIS-3': 10.58, 'ZEIS-4': 5.29, 'ZEIS-5': 10.58
-  }
   const erros = []
-  for (const [zona, total] of Object.entries(esperado)) {
-    const r = caPrivativoPotencial(zona)
-    if (!r) { erros.push(`${zona}: sem resultado`); continue }
-    if (Math.abs(r.ca_privativo_total - total) > 0.011) {
-      erros.push(`${zona}: esperado ${total}, obtido ${r.ca_privativo_total}`)
-    }
-  }
+  const zeu = caPrivativoPotencial('ZEU')
+  // ZEU: comp 6 + 20% oneroso 1,2 = 7,2; NC: 3 + 0,6 = 3,6 ≤ teto 7,2*1,439=10,36 → total 10,8
+  if (Math.abs(zeu.ca_privativo_total - 10.8) > 0.011) erros.push(`ZEU: esperado 10.8, obtido ${zeu.ca_privativo_total}`)
+  const z3 = caPrivativoPotencial('ZEIS-3')
+  // ZEIS-3: comp 4+2+1=7 +1,4=8,4; NC: 3,5+0,7=4,2 ≤ 8,4*1,439 → total 12,6
+  if (Math.abs(z3.ca_privativo_total - 12.6) > 0.011) erros.push(`ZEIS-3: esperado 12.6, obtido ${z3.ca_privativo_total}`)
+  if (!z3.camadas.find(c => c.id === 'acrescimo_hmp_d' && c.gratuito === false)) erros.push('ZEIS-3: alínea d deveria ser onerosa')
+  const acj = caPrivativoPotencial('ZEU', { piu_jurubatuba_setor: 'EIXO' })
+  if (!acj.piu_acj.alerta) erros.push('ACJ: setor EIXO deveria gerar alerta de inexistência')
   return erros
 }
 
-module.exports = { caPrivativoPotencial, autoteste, PIU_JURUBATUBA_DIF_CA, EFICIENCIA_PRIVATIVA }
+module.exports = { caPrivativoPotencial, autoteste, PIU_ACJ, EFICIENCIA_PRIVATIVA, TETO_NAO_COMPUTAVEL }

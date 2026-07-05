@@ -701,10 +701,27 @@ function renderReport(data) {
       }).join('')}
     </table>` : ''
 
-  // Gráfico empilhado da composição do CA (determinístico, da triangulação)
+  // Gráfico empilhado — prioriza o potencial privativo verificado (camadas jurídicas)
   const p0 = selecoes[0]?.contexto?.parametros_calculados
   let stackHtml = ''
-  if (p0 && typeof p0.ca_maximo_aplicavel === 'number') {
+  const pp = a.potencial_privativo
+  if (pp && Array.isArray(pp.camadas) && pp.camadas.length) {
+    const cor = c => c.natureza === 'nao_computavel' ? '#15803D' : (c.gratuito === false ? '#C2410C' : (c.id === 'ca_zoneamento' ? '#475569' : '#0369A1'))
+    const segs = pp.camadas.filter(c => c.valor > 0)
+    stackHtml = `<div class="card">
+      <div class="card-eyebrow">Potencial privativo — camadas verificadas juridicamente</div>
+      <div class="stackbar">${segs.map(c => `<div class="seg${c.gratuito === false ? ' pot' : ''}" style="flex:${c.valor};background:${cor(c)}" title="${esc(c.rotulo)} — ${esc(c.base_legal || '')}">${String(c.valor).replace('.',',')}</div>`).join('')}</div>
+      <div class="stacklegend">${segs.map(c => `<span><i style="background:${cor(c)}"></i>${esc(c.rotulo)}${c.gratuito === false ? ' ⚠ oneroso' : ''}</span>`).join('')}</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-family:var(--fm);font-size:12px;">
+        <span><b style="color:var(--hi)">Total: ${String(pp.ca_privativo_total).replace('.',',')}×</b></span>
+        <span style="color:var(--green)">Gratuito: ${String(pp.ca_total_gratuito).replace('.',',')}×</span>
+        <span style="color:var(--amber)">Oneroso: ${String(pp.parcela_onerosa).replace('.',',')}×</span>
+        <span style="color:var(--sub)">Privativo Tenda (×0,5): ~${String(pp.ca_privativo_tenda).replace('.',',')}×</span>
+        ${pp.teto_59_aplicado ? '<span style="color:var(--verm)">TETO 59% não computável APLICADO</span>' : ''}
+      </div>
+      <div style="font-size:11.5px;color:var(--sub);margin-top:8px;">${esc(pp.nota_eficiencia || '')}</div>
+    </div>`
+  } else if (p0 && typeof p0.ca_maximo_aplicavel === 'number') {
     const segs = []
     const bas = p0.ca_basico || 1
     segs.push({ v: bas, cor: '#475569', label: 'CA básico', t: bas })

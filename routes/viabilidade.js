@@ -1,5 +1,6 @@
 const { analyzeViability } = require('../services/claude')
 const { estudoDeMassa } = require('../services/implantacao')
+const { caPrivativoPotencial } = require('../services/ca-privativo')
 
 const SUPPORTED_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
@@ -31,6 +32,13 @@ module.exports = async (req, res) => {
         })
       } catch (e) {
         console.error('[viabilidade] estudo de massa falhou:', e.message)
+      }
+      // Potencial privativo (modelo da especialista corrigido juridicamente)
+      try {
+        const setorACJ = /jurubatuba/i.test(String(tri.operacao_urbana || '')) ? (contexto.setor_acj || null) : null
+        contexto.ca_privativo = caPrivativoPotencial(parametros.sigla, setorACJ ? { piu_jurubatuba_setor: setorACJ } : {})
+      } catch (e) {
+        console.error('[viabilidade] ca privativo falhou:', e.message)
       }
     }
   }
