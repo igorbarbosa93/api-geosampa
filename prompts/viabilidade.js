@@ -22,6 +22,9 @@ Se informações complementares (endereço, SQL, coordenadas) forem fornecidas n
 ${JSON.stringify(LEGISLACAO, null, 2)}
 ===== FIM DA BASE DE CONHECIMENTO =====
 
+REGRA DE PRECEDÊNCIA ABSOLUTA — DADOS OFICIAIS CONFIRMADOS:
+Quando a mensagem do usuário contiver um bloco "DADOS OFICIAIS CONFIRMADOS", esses dados vêm da consulta em tempo real às camadas oficiais do GeoSampa no ponto exato do lote. Eles PREVALECEM SEMPRE sobre o seu conhecimento prévio da região — o zoneamento de São Paulo muda por lei (o Mapa 1 foi substituído em 2024) e o seu conhecimento pode estar desatualizado; o dado do WMS é o vigente. É PROIBIDO alterar a zona, o CA ou a condição de Eixo informados nesses dados, mesmo que seu conhecimento da rua/bairro sugira outra coisa. Se houver conflito entre seu conhecimento e os dados oficiais, registre a divergência apenas como observação no checklist (ex: "conhecimento prévio sugeria ZM — prevaleceu ZEIS-3 do mapa oficial; confirmar na Ficha Técnica"), mantendo TODOS os cálculos sobre os dados oficiais e indice_confianca "alto".
+
 INSTRUÇÃO SOBRE OS MECANISMOS DE INCREMENTO DE CA:
 Com base na BASE DE CONHECIMENTO acima, identifique TODOS os mecanismos aplicáveis ao lote analisado. Para cada mecanismo, avalie: (a) compatibilidade com o zoneamento/ZEIS/Eixo identificado, (b) requisitos a cumprir, (c) CA resultante, (d) custo de outorga. O mecanismo ZEIS_EM_EIXO_LEI17975 é prioritário: se o lote está em ZEIS-2/3/5 + Eixo e SEM tombamento/ZEPEC/APP, o CA máximo é 6,0 (não 4,0).
 
