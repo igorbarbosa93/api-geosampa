@@ -539,10 +539,25 @@ $('btn-analisar-lote').addEventListener('click', () => {
   if (!selecoes.length) return
   const sqls = selecoes.map(s => s.sql).filter(Boolean)
   const areaTotal = selecoes.reduce((t, s) => t + (parseFloat(s.area_m2) || 0), 0)
+  // Dimensões aproximadas do bloco (bbox em metros) para o encaixe de lâminas
+  let croquiDims = null
+  try {
+    const rings = extrairRings(selecoes.flatMap(s => s.layers.filter(l => l instanceof L.GeoJSON)))
+    if (rings.length) {
+      const all = rings.flat()
+      const lats = all.map(p => p[0]), lngs = all.map(p => p[1])
+      const cLat = (Math.min(...lats) + Math.max(...lats)) / 2
+      const h = (Math.max(...lats) - Math.min(...lats)) * 111320
+      const w = (Math.max(...lngs) - Math.min(...lngs)) * 111320 * Math.cos(cLat * Math.PI / 180)
+      croquiDims = { testada_m: Math.round(Math.max(w, h)), profundidade_m: Math.round(Math.min(w, h)) }
+    }
+  } catch {}
+
   const contexto = {
     modo: selecoes.length > 1 ? 'bloco_unico_remembramento' : 'lote_unico',
     quantidade_lotes: selecoes.length,
     area_total_m2: areaTotal || null,
+    croqui: croquiDims,
     lotes: selecoes.map(s => ({
       sql: s.sql, endereco: s.endereco, area_m2: s.area_m2, coordenadas: s.coordenadas,
       triangulacao: s.contexto

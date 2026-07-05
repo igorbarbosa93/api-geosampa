@@ -99,18 +99,25 @@ module.exports = {
 
   // ═══ Formatos de implantação padrão Tenda (estimativas de mercado — ajustáveis) ═══
   implantacao_tenda: {
-    fonte: 'Linha vertical SP — produto Tenda capital (parede de concreto, elevador, sem subsolo). Estimativas de mercado para estudo de massa preliminar',
-    escopo: 'Apenas formatos verticalizados usados pela Tenda na cidade de São Paulo (linha de casas/baixa altura de outras praças excluída)',
-    trava_gabarito_livre: 'T+25', // pedido do usuário: gabarito livre trava em térreo + 25 pavimentos tipo
-    formatos: {
-      torre_h: { nome: 'Torre H', linha: 'SP', aptos_por_pav: 8, footprint_m: [22, 22], area_pav_m2: 420, unidade_media_m2: 41, circulacao: '1 escada + 2 elevadores no núcleo' },
-      lamina_dupla: { nome: 'Lâmina dupla', linha: 'SP', aptos_por_pav: 6, footprint_m: [34, 13], area_pav_m2: 400, unidade_media_m2: 42, circulacao: 'núcleo central, 1 escada + 1-2 elevadores' }
+    fonte: 'Produto Tenda SP — SOMENTE LÂMINAS (não existe torre H em SP). Parede de concreto, elevador, sem subsolo. Estimativas para estudo de massa preliminar',
+    regra_produto_sp: {
+      tipologia_unica: 'lâmina (corredor central, apartamentos dos dois lados)',
+      faixa_ate_18_pav: { pav_max_total: 18, aptos_por_pav_min: 8, aptos_por_pav_max: 22 },   // T+17
+      faixa_alta_26_pav: { pav_max_total: 26, aptos_por_pav_min: 8, aptos_por_pav_max: 20 },  // T+25
+      economia_de_escala: 'Quanto MENOR a lâmina, MAIS CARA a obra por unidade: o custo fixo da torre (núcleo de circulação, elevadores, fundação, fachadas de topo) dilui entre menos apartamentos por andar. Priorizar sempre a maior lâmina que couber no lote',
+      dimensoes: {
+        largura_m: 13,
+        comprimento_formula: 'comprimento ≈ (aptos_por_pav / 2) × 6,5 m de fachada por apto + 5 m de núcleo',
+        unidade_media_m2: 41
+      }
     },
     premissas: [
       'Térreo: pilotis parcial + vagas descobertas + lazer — Tenda evita subsolo (custo)',
-      'Espaçamento mínimo entre torres: ~1/6 da altura, mínimo 6 m (insolação/ventilação)',
+      'Espaçamento mínimo entre lâminas: ~1/6 da altura, mínimo 6 m (insolação/ventilação)',
+      'Recuos obrigatórios da zona SEMPRE descontados antes do encaixe (frente conforme zona; laterais/fundos 3 m acima de 10 m de altura)',
+      'ENVOLTÓRIA DE VILA / RUA SEM SAÍDA: faixa de 20 m trava gabarito em 28 m (ZEU/ZEUP/ZEM/ZEMP) ou 15 m (demais zonas) — verificar no local antes de fixar altura; lote confrontante com ZER trava 15 m na faixa de 20 m',
       'Área de lazer/condominial: ~10-15% do terreno',
-      'Acessos e viário interno: ~12-18% do terreno em condomínios multi-torre'
+      'Acessos e viário interno: ~12-18% do terreno em condomínios multi-lâmina'
     ]
   },
 

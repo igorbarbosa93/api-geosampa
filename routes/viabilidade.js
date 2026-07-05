@@ -26,7 +26,8 @@ module.exports = async (req, res) => {
         contexto.estudo_massa = estudoDeMassa({
           areaTerrenoM2: contexto.area_total_m2,
           parametros,
-          declividadePct: decliv
+          declividadePct: decliv,
+          dimensoesLote: contexto.croqui || null
         })
       } catch (e) {
         console.error('[viabilidade] estudo de massa falhou:', e.message)
