@@ -76,28 +76,11 @@ function caPrivativoPotencial(sigla, opts = {}) {
     })
   }
 
-  const caComputavel = caEhis + acrescC + acrescD
+  const caComputavelParcial = caEhis + acrescC + acrescD
 
-  // 3) Alínea "e": HIS-1 não computável até 50% da ACC máxima permitida
-  const his1e = caComputavel * 0.5
-  camadas.push({
-    id: 'his1_nao_computavel_e', natureza: 'nao_computavel', gratuito: true,
-    rotulo: '+50% HIS-1 não computável (alínea e)', valor: r2(his1e),
-    base_legal: 'PDE art. 60, I, "e" (Lei 17.975/23); Dec. 63.728/24 art. 17',
-    status: 'CONFIRMADO', condicao: 'Teto: 50% da área construída computável máxima permitida'
-  })
-
-  // 4) Cota de Solidariedade in-loco: HIS = 10% da ACC, não computável
-  const cota10 = caComputavel * 0.10
-  camadas.push({
-    id: 'cota_solidariedade_10', natureza: 'nao_computavel', gratuito: true,
-    rotulo: '+10% Cota de Solidariedade in-loco (HIS)', valor: r2(cota10),
-    base_legal: 'PDE arts. 111-112 (Lei 17.975/23)',
-    status: 'CONFIRMADO com ressalva', condicao: 'Obrigatória apenas >20.000 m² de ACC; adesão facultativa abaixo; HIS produzida no próprio empreendimento'
-  })
-
-  // 5) §3º art. 112: +20% de ACC — ONEROSO (correção: planilha tratava como não computável)
-  const bonus20 = caComputavel * 0.20
+  // 3) §3º art. 112: +20% de ACC — ONEROSO. Base: CA do empreendimento
+  //    "considerados os incentivos de majoração previstos em lei" (Dec. 63.504/24)
+  const bonus20 = caComputavelParcial * 0.20
   camadas.push({
     id: 'bonus_cota_20_oneroso', natureza: 'computavel', gratuito: false,
     rotulo: '+20% ACC por atender a cota (§3º) — ONEROSO', valor: r2(bonus20),
@@ -106,9 +89,32 @@ function caPrivativoPotencial(sigla, opts = {}) {
     condicao: 'Mediante pagamento de outorga onerosa'
   })
 
+  // ACC FINAL do empreendimento (base das não computáveis abaixo)
+  const caComputavel = caComputavelParcial + bonus20
+
+  // 4) Alínea "e": HIS-1 não computável até 50% da ACC máxima permitida
+  const his1e = caComputavel * 0.5
+  camadas.push({
+    id: 'his1_nao_computavel_e', natureza: 'nao_computavel', gratuito: true,
+    rotulo: '+50% HIS-1 não computável (alínea e)', valor: r2(his1e),
+    base_legal: 'PDE art. 60, I, "e" (Lei 17.975/23); Dec. 63.728/24 art. 17',
+    status: 'CONFIRMADO', condicao: 'Teto: 50% da ACC máxima permitida (aqui: incluindo acréscimos legais — interpretação a confirmar na SMUL)'
+  })
+
+  // 5) Cota de Solidariedade in-loco: HIS = 10% da ACC FINAL, não computável.
+  //    Base legal expressa: "10% da área construída computável" do empreendimento
+  //    (art. 112, caput) — por isso incide sobre a ACC já majorada pelos acréscimos.
+  const cota10 = caComputavel * 0.10
+  camadas.push({
+    id: 'cota_solidariedade_10', natureza: 'nao_computavel', gratuito: true,
+    rotulo: '+10% Cota de Solidariedade in-loco (HIS) — 10% da ACC final', valor: r2(cota10),
+    base_legal: 'PDE arts. 111-112 (Lei 17.975/23)',
+    status: 'CONFIRMADO com ressalva', condicao: 'Obrigatória apenas se ACC > 20.000 m²; adesão facultativa abaixo; HIS produzida no próprio empreendimento'
+  })
+
   // Teto de 59% de não computáveis sobre a área construída TOTAL
   let naoComputavel = his1e + cota10
-  const computavelTotal = caComputavel + bonus20
+  const computavelTotal = caComputavel // ACC final já inclui o bônus de 20%
   const tetoNC = computavelTotal * TETO_NAO_COMPUTAVEL / (1 - TETO_NAO_COMPUTAVEL)
   let tetoAplicado = false
   if (naoComputavel > tetoNC) { naoComputavel = tetoNC; tetoAplicado = true }
@@ -151,11 +157,11 @@ function avaliarACJ(zona, setor) {
 function autoteste() {
   const erros = []
   const zeu = caPrivativoPotencial('ZEU')
-  // ZEU: comp 6 + 20% oneroso 1,2 = 7,2; NC: 3 + 0,6 = 3,6 ≤ teto 7,2*1,439=10,36 → total 10,8
-  if (Math.abs(zeu.ca_privativo_total - 10.8) > 0.011) erros.push(`ZEU: esperado 10.8, obtido ${zeu.ca_privativo_total}`)
+  // ZEU: parcial 6; +20%=1,2; ACC=7,2; NC: 3,6+0,72=4,32; total 11,52
+  if (Math.abs(zeu.ca_privativo_total - 11.52) > 0.011) erros.push(`ZEU: esperado 11.52, obtido ${zeu.ca_privativo_total}`)
   const z3 = caPrivativoPotencial('ZEIS-3')
-  // ZEIS-3: comp 4+2+1=7 +1,4=8,4; NC: 3,5+0,7=4,2 ≤ 8,4*1,439 → total 12,6
-  if (Math.abs(z3.ca_privativo_total - 12.6) > 0.011) erros.push(`ZEIS-3: esperado 12.6, obtido ${z3.ca_privativo_total}`)
+  // ZEIS-3: parcial 7; +20%=1,4; ACC=8,4; NC: 4,2+0,84=5,04; total 13,44
+  if (Math.abs(z3.ca_privativo_total - 13.44) > 0.011) erros.push(`ZEIS-3: esperado 13.44, obtido ${z3.ca_privativo_total}`)
   if (!z3.camadas.find(c => c.id === 'acrescimo_hmp_d' && c.gratuito === false)) erros.push('ZEIS-3: alínea d deveria ser onerosa')
   const acj = caPrivativoPotencial('ZEU', { piu_jurubatuba_setor: 'EIXO' })
   if (!acj.piu_acj.alerta) erros.push('ACJ: setor EIXO deveria gerar alerta de inexistência')
