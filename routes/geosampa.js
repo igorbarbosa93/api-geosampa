@@ -108,7 +108,15 @@ const LAYER_CANDIDATES = {
   tombamento: (process.env.GEOSAMPA_TOMB_LAYERS ||
     'geoportal:tombamento,geoportal:bens_tombados,geoportal:zepec').split(','),
   topografia: (process.env.GEOSAMPA_TOPO_LAYERS ||
-    'geoportal:curva_de_nivel,geoportal:curvas_nivel,geoportal:altimetria').split(',')
+    'geoportal:curva_de_nivel,geoportal:curvas_nivel,geoportal:altimetria').split(','),
+  melhoramento: (process.env.GEOSAMPA_MELHORAMENTO_LAYERS ||
+    'geoportal:melhoramento_viario,geoportal:melhoramentos_viarios').split(','),
+  hidrografia: (process.env.GEOSAMPA_HIDRO_LAYERS ||
+    'geoportal:hidrografia,geoportal:curso_dagua,geoportal:rios').split(','),
+  drenagem: (process.env.GEOSAMPA_DRENAGEM_LAYERS ||
+    'geoportal:rede_drenagem,geoportal:drenagem,geoportal:galerias').split(','),
+  alta_tensao: (process.env.GEOSAMPA_LT_LAYERS ||
+    'geoportal:rede_alta_tensao,geoportal:linha_transmissao').split(',')
 }
 const layerCache = {}
 
@@ -122,7 +130,11 @@ const DISCOVERY_PATTERNS = {
   eixo:       [/eixo/i],
   operacao:   [/opera[cç][aã]o[_-]?urbana/i, /\bpiu\b/i, /\bouc\b/i],
   tombamento: [/tomb/i, /zepec/i, /patrimonio/i],
-  topografia: [/curva[_-]?d?e?[_-]?nivel/i, /altimetr/i, /\bmdt\b/i, /\bmdc\b/i, /decliv/i, /topograf/i]
+  topografia: [/curva[_-]?d?e?[_-]?nivel/i, /altimetr/i, /\bmdt\b/i, /\bmdc\b/i, /decliv/i, /topograf/i],
+  melhoramento: [/melhoramento/i, /alargamento/i, /faixa[_-]?n?a?o?[_-]?edific/i],
+  hidrografia: [/hidrograf/i, /curso[_-]?d?[_-]?agua/i, /corrego/i, /\brio\b/i, /nascente/i],
+  drenagem: [/drenag/i, /galeria/i, /piscin[aã]o/i, /reservatorio[_-]?d?e?[_-]?contencao/i],
+  alta_tensao: [/alta[_-]?tensao/i, /transmissao/i, /linhao/i, /servidao/i]
 }
 // Ordena candidatos descobertos pela prioridade dos padrões (18.177 primeiro)
 function rankByPatterns(names, patterns) {
@@ -347,6 +359,52 @@ async function contexto(req, res) {
   })
 }
 
+// GET /v1/geosampa/mapa?lat=&lng=&tema=&buffer= — prancha de sobreposição:
+// imagem WMS (GetMap) da camada temática no entorno do lote, proxiada
+// (evita CORS) para o front compor com a poligonal do terreno.
+const TEMAS_MAPA = ['melhoramento', 'hidrografia', 'drenagem', 'alta_tensao', 'zona', 'topografia']
+
+async function mapa(req, res) {
+  const lat = parseFloat(req.query.lat)
+  const lng = parseFloat(req.query.lng)
+  const tema = String(req.query.tema || '')
+  if (isNaN(lat) || isNaN(lng) || !TEMAS_MAPA.includes(tema)) {
+    return res.status(400).json({ status: 'erro', mensagem: `Parâmetros: lat, lng e tema (${TEMAS_MAPA.join('|')})` })
+  }
+  const bufferM = Math.min(parseFloat(req.query.buffer) || 150, 600)
+  const dLat = bufferM / 111320
+  const dLng = bufferM / (111320 * Math.cos(lat * Math.PI / 180))
+  const bbox = `${lng - dLng},${lat - dLat},${lng + dLng},${lat + dLat}`
+
+  const discovered = await discoverLayers()
+  const candidates = layerCache[tema] ? [layerCache[tema]] : [...(discovered[tema] || []), ...(LAYER_CANDIDATES[tema] || [])]
+
+  for (const layer of candidates) {
+    try {
+      const params = new URLSearchParams({
+        service: 'WMS', version: '1.1.1', request: 'GetMap',
+        layers: layer.trim(), styles: '', bbox, srs: 'EPSG:4326',
+        width: '640', height: '640', format: 'image/png', transparent: 'true'
+      })
+      const ctl = new AbortController()
+      const t = setTimeout(() => ctl.abort(), 12000)
+      const resp = await fetch(`${GEOSAMPA_WMS}?${params}`, { headers: { 'User-Agent': UA }, signal: ctl.signal })
+      clearTimeout(t)
+      if (!resp.ok) continue
+      const ct = resp.headers.get('content-type') || ''
+      if (!ct.includes('image')) continue // ServiceException XML → tenta próximo
+      const buf = Buffer.from(await resp.arrayBuffer())
+      if (buf.length < 200) continue
+      layerCache[tema] = layer.trim()
+      res.set('Content-Type', 'image/png')
+      res.set('X-Geosampa-Layer', layer.trim())
+      res.set('X-Geosampa-Bbox', bbox)
+      return res.send(buf)
+    } catch { /* próximo candidato */ }
+  }
+  res.status(404).json({ status: 'vazio', mensagem: `Camada de ${tema} indisponível no WMS`, bbox })
+}
+
 // GET /v1/geosampa/camadas — diagnóstico: mostra as camadas descobertas
 // no GeoServer da PMSP e quais estão em uso para cada consulta
 async function camadas(req, res) {
@@ -360,4 +418,4 @@ async function camadas(req, res) {
   })
 }
 
-module.exports = { busca, lote, contexto, camadas, calcularParametros }
+module.exports = { busca, lote, contexto, camadas, mapa, calcularParametros }

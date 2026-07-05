@@ -4,7 +4,7 @@ const LEGISLACAO = require('../prompts/legislacao-his')
 
 function pavimentosPorGabarito(gabaritoM) {
   if (gabaritoM === null || gabaritoM === undefined || gabaritoM === 'livre (NA)') {
-    return { totais: null, tipo: null, rotulo: 'livre — altura definida por cota-parte/CA' }
+    return { totais: null, tipo: null, rotulo: 'livre — travado em T+25 no estudo de massa (parâmetro de produto SP)' }
   }
   const g = typeof gabaritoM === 'number' ? gabaritoM : parseFloat(gabaritoM)
   if (isNaN(g)) return { totais: null, tipo: null, rotulo: String(gabaritoM) }
@@ -36,7 +36,7 @@ function estudoDeMassa({ areaTerrenoM2, parametros, declividadePct }) {
     let pavTipo = pav.tipo
     if (pavTipo === null && areaComputavelMax) {
       pavTipo = Math.max(Math.floor(areaComputavelMax / (torresPorArea * f.area_pav_m2)), 1)
-      pavTipo = Math.min(pavTipo, 24) // teto prático de produto MCMV
+      pavTipo = Math.min(pavTipo, 25) // gabarito livre: trava em T+25 (parâmetro do usuário)
     }
     if (!pavTipo) continue
 

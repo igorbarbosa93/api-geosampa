@@ -218,6 +218,32 @@
   .impl-tbl tr.rec td{ background:var(--verm-l); }
   .talude-chip{ display:inline-block; font-size:11px; font-weight:700; padding:5px 11px; border-radius:3px; margin-top:10px; }
 
+  /* Croqui e pranchas de sobreposição */
+  .croqui-wrap{ margin-top:14px; border:1px solid var(--border); border-radius:5px; overflow:hidden; background:#fff; }
+  .croqui-wrap canvas{ display:block; width:100%; height:auto; }
+  .interf-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; }
+  .interf-panel{ border:1px solid var(--border); border-radius:5px; overflow:hidden; background:var(--surf); }
+  .interf-title{ font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--mid); padding:7px 10px; border-bottom:1px solid var(--raised); display:flex; align-items:center; gap:6px; }
+  .interf-title i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+  .interf-map{ position:relative; aspect-ratio:1; background:#F6F5F1; }
+  .interf-map img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .interf-map svg{ position:absolute; inset:0; width:100%; height:100%; }
+  .interf-map .off-msg{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-size:11px; color:var(--muted); text-align:center; padding:12px; }
+  .interf-panel.off .off-msg{ display:flex; }
+  .interf-panel.off img{ display:none; }
+
+  /* Impressão / Exportar PDF */
+  @media print{
+    .hero, #s-form, #s-loading, #s-location, #s-error, .report-head button, .search-row, .map-controls{ display:none !important; }
+    body{ background:#fff; font-size:11px; }
+    .wrap{ max-width:100%; padding:0; }
+    .card, details.det{ box-shadow:none; break-inside:avoid; }
+    .band{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    details.det{ page-break-inside:avoid; }
+    details.det:not([open]) summary::after{ content:''; }
+    #report-map{ display:none; } /* mapa interativo não imprime bem — croqui e pranchas cobrem */
+  }
+
   details.det{ border:1px solid var(--border); border-radius:var(--r); margin-bottom:10px; background:var(--surf); box-shadow:var(--shadow); }
   details.det:hover{ border-color:var(--border2); }
   details.det summary{ padding:15px 20px; font-size:13px; font-weight:700; letter-spacing:-.1px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px; }
@@ -701,6 +727,7 @@ function renderReport(data) {
       <div style="font-size:11.5px;color:var(--sub);margin-top:10px;">Gabarito: <b>${esc(impl.gabarito || '')}</b> · Área implantável ≈ ${(impl.area_implantavel_m2 || 0).toLocaleString('pt-BR')} m²</div>
       ${tal && tal.classe ? `<span class="talude-chip" style="color:${talCor[0]};background:${talCor[1]}">Taludes: ${esc(tal.classe)} (${tal.declividade_estimada_pct}%) — ${esc(tal.impacto || '')}</span>` : ''}
       ${impl.narrativa ? `<div style="font-size:12.5px;color:var(--mid);margin-top:10px;">${esc(impl.narrativa)}</div>` : ''}
+      <div class="croqui-wrap"><canvas id="croqui-canvas"></canvas></div>
       <div class="map-note">${esc(impl.fonte || '')}</div>
     </div>`
   }
@@ -730,7 +757,10 @@ function renderReport(data) {
   $('s-report').innerHTML = `
     <div class="report-head">
       <div class="card-eyebrow" style="margin:0;">Laudo preliminar</div>
-      <button class="ghost" id="btn-back">← Nova análise</button>
+      <div style="display:flex;gap:16px;">
+        <button class="ghost" id="btn-pdf">⬇ Exportar PDF</button>
+        <button class="ghost" id="btn-back">← Nova análise</button>
+      </div>
     </div>
 
     <div class="band">
@@ -776,6 +806,11 @@ function renderReport(data) {
       <div class="card-eyebrow">Lote no cadastro oficial</div>
       <div class="map-wrap"><div id="report-map"></div></div>
       <div class="map-note">Geometria oficial da camada de lotes do GeoSampa. Ative a camada de satélite para conferir a ocupação atual.</div>
+    </div>
+    <div class="card">
+      <div class="card-eyebrow">Sobreposições — interferências sobre a poligonal</div>
+      <div class="interf-grid" id="interf-grid"></div>
+      <div class="map-note">Poligonal do terreno em vermelho sobre cada camada oficial do GeoSampa (raio de 150 m). Painel vazio = camada indisponível no WMS no momento da consulta.</div>
     </div>` : ''}
 
     ${flags ? `<div class="card"><div class="card-eyebrow">Red flags</div>${flags}</div>` : ''}
@@ -792,9 +827,15 @@ function renderReport(data) {
   `
 
   $('btn-back').addEventListener('click', () => show('form'))
+  $('btn-pdf').addEventListener('click', () => {
+    document.querySelectorAll('#s-report details.det').forEach(d => d.open = true)
+    setTimeout(() => window.print(), 150)
+  })
   requestAnimationFrame(() => { $('ca-fill').style.width = Math.min((caMax/scaleMax)*100, 100) + '%' })
 
   if (hasImgOverlays) drawOverlays(ov)
+  if (hasLoteMap && impl && impl.recomendada) desenharCroqui('croqui-canvas', selPolys, impl.recomendada)
+  if (hasLoteMap) montarInterferencias(selPolys)
   if (hasLoteMap) {
     const rmap = L.map('report-map', { zoomControl: true })
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' }).addTo(rmap)
@@ -804,6 +845,49 @@ function renderReport(data) {
     rmap.fitBounds(g.getBounds(), { maxZoom: 18, padding: [24, 24] })
     if (impl && impl.recomendada) desenharTorres(rmap, selPolys, impl.recomendada)
   }
+}
+
+// ─── Pranchas de sobreposição: poligonal × camadas oficiais ───
+const TEMAS_INTERF = [
+  { tema: 'melhoramento', titulo: 'Melhoramento viário', cor: '#D8232A' },
+  { tema: 'hidrografia',  titulo: 'Hidrografia / APP',   cor: '#0369A1' },
+  { tema: 'drenagem',     titulo: 'Drenagem',            cor: '#0E7490' },
+  { tema: 'alta_tensao',  titulo: 'Rede de alta tensão', cor: '#C2410C' },
+  { tema: 'topografia',   titulo: 'Curvas de nível',     cor: '#64748B' },
+  { tema: 'zona',         titulo: 'Zoneamento L18.177/24', cor: '#6B21A8' }
+]
+
+function montarInterferencias(selPolys) {
+  const grid = $('interf-grid')
+  if (!grid) return
+  const rings = extrairRings(selPolys)
+  if (!rings.length) return
+  const all = rings.flat()
+  const cLat = all.reduce((s, p) => s + p[0], 0) / all.length
+  const cLng = all.reduce((s, p) => s + p[1], 0) / all.length
+  const BUF = 150
+  const dLat = BUF / 111320
+  const dLng = BUF / (111320 * Math.cos(cLat * Math.PI / 180))
+
+  // Converte a poligonal para pontos SVG no mesmo bbox do GetMap
+  const svgPoly = ring => ring.map(([la, lo]) => {
+    const x = ((lo - (cLng - dLng)) / (2 * dLng)) * 100
+    const y = ((cLat + dLat - la) / (2 * dLat)) * 100
+    return `${x.toFixed(2)},${y.toFixed(2)}`
+  }).join(' ')
+
+  grid.innerHTML = TEMAS_INTERF.map(t => `
+    <div class="interf-panel" id="ip-${t.tema}">
+      <div class="interf-title"><i style="background:${t.cor}"></i>${t.titulo}</div>
+      <div class="interf-map">
+        <img src="${API}/geosampa/mapa?lat=${cLat}&lng=${cLng}&tema=${t.tema}&buffer=${BUF}" alt="${t.titulo}"
+             onerror="document.getElementById('ip-${t.tema}').classList.add('off')" crossorigin="anonymous">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          ${rings.map(r => `<polygon points="${svgPoly(r)}" fill="rgba(216,35,42,.10)" stroke="#D8232A" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('')}
+        </svg>
+        <div class="off-msg">camada indisponível no WMS<br>verificar manualmente no GeoSampa</div>
+      </div>
+    </div>`).join('')
 }
 
 // Canvas: imagem enviada + manchas (modo upload)
@@ -834,17 +918,17 @@ function drawOverlays(ov) {
 }
 
 // ─── Encaixe esquemático das torres Tenda na poligonal do lote ───
-function desenharTorres(rmap, selPolys, rec) {
-  // Une os anéis externos de todos os lotes selecionados em lista de vértices [lat,lng]
-  const rings = selPolys.map(p => {
+function extrairRings(selPolys) {
+  return selPolys.map(p => {
     const gj = p.toGeoJSON()
     const f = gj.features ? gj.features[0] : gj
     const c = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0]
     return c.map(([lng, lat]) => [lat, lng])
   })
-  if (!rings.length) return
+}
 
-  // Projeção local em metros ao redor do centróide
+function computarTorres(rings, rec) {
+  if (!rings.length || !rec) return null
   const all = rings.flat()
   const c0 = [all.reduce((s, p) => s + p[0], 0) / all.length, all.reduce((s, p) => s + p[1], 0) / all.length]
   const mLat = 111320, mLng = 111320 * Math.cos(c0[0] * Math.PI / 180)
@@ -866,7 +950,6 @@ function desenharTorres(rmap, selPolys, rec) {
   const gap = 6, recuo = 5
   const W2 = fw / 2 + recuo, H2 = fh / 2 + recuo
 
-  // Ângulo: acompanha o lado mais longo da poligonal do primeiro lote
   let ang = 0, maxLen = 0
   const r0 = ringsM[0]
   for (let i = 0; i < r0.length - 1; i++) {
@@ -877,26 +960,97 @@ function desenharTorres(rmap, selPolys, rec) {
   const cos = Math.cos(ang), sin = Math.sin(ang)
   const rot = ([x, y]) => [x * cos - y * sin, y * cos + x * sin]
 
-  // Varre grade no referencial rotacionado e valida os 4 cantos + centro
-  const placed = []
-  const R = 90 // raio de busca em metros
-  for (let gy = -R; gy <= R && placed.length < rec.torres; gy += fh + gap) {
-    for (let gx = -R; gx <= R && placed.length < rec.torres; gx += fw + gap) {
+  const placedM = [], placedLL = []
+  const R = 90
+  for (let gy = -R; gy <= R && placedM.length < rec.torres; gy += fh + gap) {
+    for (let gx = -R; gx <= R && placedM.length < rec.torres; gx += fw + gap) {
       const corners = [[-W2, -H2], [W2, -H2], [W2, H2], [-W2, H2], [0, 0]]
         .map(([dx, dy]) => rot([gx + dx, gy + dy]))
       if (corners.every(insideAny)) {
-        const rect = [[-fw/2, -fh/2], [fw/2, -fh/2], [fw/2, fh/2], [-fw/2, fh/2]]
-          .map(([dx, dy]) => toLL(rot([gx + dx, gy + dy])))
-        placed.push(rect)
+        const rectM = [[-fw/2, -fh/2], [fw/2, -fh/2], [fw/2, fh/2], [-fw/2, fh/2]]
+          .map(([dx, dy]) => rot([gx + dx, gy + dy]))
+        placedM.push(rectM)
+        placedLL.push(rectM.map(toLL))
       }
     }
   }
+  return { placedM, placedLL, ringsM, c0 }
+}
 
-  placed.forEach((rect, i) => {
-    L.polygon(rect, { color: '#F8FAFC', weight: 2, fillColor: '#1E293B', fillOpacity: .75, dashArray: null })
+function desenharTorres(rmap, selPolys, rec) {
+  const fit = computarTorres(extrairRings(selPolys), rec)
+  if (!fit) return
+  fit.placedLL.forEach((rect, i) => {
+    L.polygon(rect, { color: '#F8FAFC', weight: 2, fillColor: '#1E293B', fillOpacity: .75 })
       .addTo(rmap)
-      .bindTooltip(`${rec.formato} ${i + 1} · ${rec.pavimentos} · ${rec.aptos_por_pav} aptos/pav`, { direction: 'center', className: 'torre-tip' })
+      .bindTooltip(`${rec.formato} ${i + 1} · ${rec.pavimentos} · ${rec.aptos_por_pav} aptos/pav`, { direction: 'center' })
   })
+}
+
+// Croqui esquemático de implantação (canvas — entra no PDF)
+function desenharCroqui(canvasId, selPolys, rec, titulo) {
+  const canvas = $(canvasId)
+  if (!canvas) return
+  const fit = computarTorres(extrairRings(selPolys), rec)
+  if (!fit) { canvas.closest('.croqui-wrap')?.classList.add('hidden'); return }
+
+  const W = 680, H = 460, PAD = 46
+  canvas.width = W; canvas.height = H
+  const ctx = canvas.getContext('2d')
+  const pts = fit.ringsM.flat()
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1])
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys)
+  const esc = Math.min((W - 2*PAD) / (maxX - minX), (H - 2*PAD) / (maxY - minY))
+  const px = ([x, y]) => [PAD + (x - minX) * esc, H - PAD - (y - minY) * esc] // y invertido: norte p/ cima
+
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H)
+  // grade leve
+  ctx.strokeStyle = 'rgba(148,163,184,.18)'; ctx.lineWidth = 1
+  for (let gx = 0; gx < W; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke() }
+  for (let gy = 0; gy < H; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke() }
+
+  // poligonais dos lotes
+  fit.ringsM.forEach(r => {
+    ctx.beginPath()
+    r.forEach((p, i) => { const [x, y] = px(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y) })
+    ctx.closePath()
+    ctx.fillStyle = 'rgba(216,35,42,.06)'; ctx.fill()
+    ctx.strokeStyle = '#D8232A'; ctx.lineWidth = 2.5; ctx.setLineDash([]); ctx.stroke()
+  })
+
+  // torres
+  fit.placedM.forEach((rect, i) => {
+    ctx.beginPath()
+    rect.forEach((p, j) => { const [x, y] = px(p); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y) })
+    ctx.closePath()
+    ctx.fillStyle = 'rgba(30,41,59,.88)'; ctx.fill()
+    ctx.strokeStyle = '#F8FAFC'; ctx.lineWidth = 1.5; ctx.stroke()
+    const cx = rect.reduce((s, p) => s + px(p)[0], 0) / 4
+    const cy = rect.reduce((s, p) => s + px(p)[1], 0) / 4
+    ctx.fillStyle = '#FFFFFF'; ctx.font = '700 11px Segoe UI, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText(`T${i + 1}`, cx, cy - 6)
+    ctx.font = '9px Courier New, monospace'
+    ctx.fillText(rec.pavimentos, cx, cy + 7)
+  })
+
+  // escala gráfica 20 m
+  const bx = PAD, by = H - 18
+  ctx.strokeStyle = '#1E293B'; ctx.lineWidth = 2
+  ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + 20 * esc, by); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(bx, by - 4); ctx.lineTo(bx, by + 4); ctx.moveTo(bx + 20 * esc, by - 4); ctx.lineTo(bx + 20 * esc, by + 4); ctx.stroke()
+  ctx.fillStyle = '#475569'; ctx.font = '10px Courier New, monospace'; ctx.textAlign = 'left'
+  ctx.fillText('20 m', bx + 20 * esc + 6, by + 3)
+
+  // norte
+  ctx.save(); ctx.translate(W - 30, 34)
+  ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(6, 8); ctx.lineTo(0, 3); ctx.lineTo(-6, 8); ctx.closePath()
+  ctx.fillStyle = '#D8232A'; ctx.fill()
+  ctx.fillStyle = '#475569'; ctx.font = '700 11px Segoe UI'; ctx.textAlign = 'center'; ctx.fillText('N', 0, 22)
+  ctx.restore()
+
+  // título
+  ctx.fillStyle = '#1E293B'; ctx.font = '700 12px Segoe UI'; ctx.textAlign = 'left'
+  ctx.fillText(titulo || `Croqui de implantação — ${rec.formato} · ${fit.placedM.length}× ${rec.pavimentos}`, PAD, 24)
 }
 
 function drawPoly(ctx, pts, W, H, fill, stroke, lw, dash) {

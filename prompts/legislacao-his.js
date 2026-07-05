@@ -99,11 +99,12 @@ module.exports = {
 
   // ═══ Formatos de implantação padrão Tenda (estimativas de mercado — ajustáveis) ═══
   implantacao_tenda: {
-    fonte: 'Parâmetros típicos de produto MCMV/Tenda (parede de concreto, sem subsolo) — estimativas de mercado para estudo de massa preliminar',
+    fonte: 'Linha vertical SP — produto Tenda capital (parede de concreto, elevador, sem subsolo). Estimativas de mercado para estudo de massa preliminar',
+    escopo: 'Apenas formatos verticalizados usados pela Tenda na cidade de São Paulo (linha de casas/baixa altura de outras praças excluída)',
+    trava_gabarito_livre: 'T+25', // pedido do usuário: gabarito livre trava em térreo + 25 pavimentos tipo
     formatos: {
-      torre_h: { nome: 'Torre H', aptos_por_pav: 8, footprint_m: [22, 22], area_pav_m2: 420, unidade_media_m2: 41, circulacao: '1 escada + 1-2 elevadores no núcleo' },
-      lamina:  { nome: 'Lâmina', aptos_por_pav: 4, footprint_m: [28, 12], area_pav_m2: 300, unidade_media_m2: 43, circulacao: 'escada + elevador em extremidade' },
-      lamina_dupla: { nome: 'Lâmina dupla', aptos_por_pav: 6, footprint_m: [34, 13], area_pav_m2: 400, unidade_media_m2: 42, circulacao: 'núcleo central' }
+      torre_h: { nome: 'Torre H', linha: 'SP', aptos_por_pav: 8, footprint_m: [22, 22], area_pav_m2: 420, unidade_media_m2: 41, circulacao: '1 escada + 2 elevadores no núcleo' },
+      lamina_dupla: { nome: 'Lâmina dupla', linha: 'SP', aptos_por_pav: 6, footprint_m: [34, 13], area_pav_m2: 400, unidade_media_m2: 42, circulacao: 'núcleo central, 1 escada + 1-2 elevadores' }
     },
     premissas: [
       'Térreo: pilotis parcial + vagas descobertas + lazer — Tenda evita subsolo (custo)',

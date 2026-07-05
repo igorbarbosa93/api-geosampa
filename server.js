@@ -21,6 +21,7 @@ server.get(`/${version}/geosampa/busca`, geosampa.busca)
 server.get(`/${version}/geosampa/lote`, geosampa.lote)
 server.get(`/${version}/geosampa/contexto`, geosampa.contexto)
 server.get(`/${version}/geosampa/camadas`, geosampa.camadas)
+server.get(`/${version}/geosampa/mapa`, geosampa.mapa)
 server.post(`/${version}/viabilidade`, upload.single('imagem'), viabilidadeHandler)
 server.use(`/${version}`, router)
 
