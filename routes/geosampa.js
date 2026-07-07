@@ -71,14 +71,14 @@ async function lote(req, res) {
       return res.json({ status: 'vazio', mensagem: 'Nenhum lote encontrado neste ponto. Aproxime o zoom e clique dentro do lote.' })
     }
     const p = feat.properties || {}
-    // O nome do atributo de SQL varia conforme a publicação da camada
-    const sql = p.lo_sql || p.sql || p.sqlc || p.SQL || p.sq || p.cd_sql ||
-      (p.lo_setor && p.lo_quadra && p.lo_lote ? `${p.lo_setor}.${p.lo_quadra}.${p.lo_lote}` : null)
+    const ext = extrairDadosLote(p, feat.geometry)
     res.json({
       status: 'success',
-      sql,
-      endereco: p.lo_endereco || p.endereco || p.nm_logradouro || null,
-      area_m2: p.lo_area || p.area || p.ar_lote || null,
+      sql: ext.sql,
+      endereco: ext.endereco,
+      area_m2: ext.area_m2,
+      area_geometria_m2: ext.area_geometria_m2,
+      divergencia_area: ext.divergencia_area,
       propriedades: p,
       geometria: feat.geometry || null
     })
@@ -88,6 +88,77 @@ async function lote(req, res) {
       mensagem: 'Consulta ao cadastro do GeoSampa indisponível. Você ainda pode analisar pelas coordenadas do ponto clicado.'
     })
   }
+}
+
+// ─── Extração robusta dos dados do lote (campos reais do GeoSampa:
+//     "Código do contribuinte" = SQL completo; "Área terreno (m2)";
+//     Setor/Quadra/Lote/Dígito SQL separados; Nome logradouro) ───
+const normKey = k => String(k).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[\s_()]+/g, '')
+
+function extrairDadosLote(props, geometry) {
+  const entries = Object.entries(props || {}).map(([k, v]) => [normKey(k), v, k])
+  const byKey = frag => entries.find(([nk, v]) => nk.includes(frag) && v !== null && v !== '')
+
+  // SQL: 1) qualquer valor no formato NNN.NNN.NNNN(-D); 2) campo "contribuinte";
+  //      3) composição setor.quadra.lote-dígito
+  let sql = null
+  for (const [, v] of entries) {
+    const m = String(v).match(/^(\d{3})[.\s]?(\d{3})[.\s]?(\d{4})[-.\s]?(\d)?$/)
+    if (m) { sql = `${m[1]}.${m[2]}.${m[3]}${m[4] ? '-' + m[4] : ''}`; break }
+  }
+  if (!sql) {
+    const contrib = byKey('contribuinte')
+    if (contrib) sql = String(contrib[1]).trim()
+  }
+  if (!sql) {
+    const setor = byKey('setor'), quadra = byKey('quadra'), lote = byKey('lote')
+    const digito = byKey('digito')
+    if (setor && quadra && lote) {
+      sql = `${String(setor[1]).padStart(3, '0')}.${String(quadra[1]).padStart(3, '0')}.${String(lote[1]).padStart(4, '0')}${digito ? '-' + digito[1] : ''}`
+    }
+  }
+
+  // Área cadastral: chave com "area"+"terreno" > "area"+"lote" > qualquer "area" numérica
+  let area = null
+  for (const frags of [['area', 'terreno'], ['area', 'lote'], ['area']]) {
+    const hit = entries.find(([nk, v]) => frags.every(f => nk.includes(f)) && !isNaN(parseFloat(v)) && parseFloat(v) > 10)
+    if (hit) { area = parseFloat(hit[1]); break }
+  }
+
+  // Área pela geometria oficial (shoelace) — fallback e verificação cruzada
+  const areaGeo = geometry ? areaGeometriaM2(geometry) : null
+  let divergencia = null
+  if (area && areaGeo && Math.abs(area - areaGeo) / area > 0.05) {
+    divergencia = `Área cadastral (${Math.round(area)} m²) diverge da geometria (${Math.round(areaGeo)} m²) em ${Math.round(Math.abs(area - areaGeo) / area * 100)}% — confirmar na Ficha Técnica`
+  }
+
+  // Endereço: logradouro + número/porta + complemento
+  const log = byKey('logradouro') || byKey('endereco')
+  const num = byKey('porta') || byKey('numero')
+  const compl = byKey('complemento')
+  const endereco = log ? [log[1], num && String(num[1]).trim() !== 'S/N' ? num[1] : null, compl ? compl[1] : null].filter(Boolean).join(', ') : null
+
+  return { sql, endereco, area_m2: area ?? (areaGeo ? Math.round(areaGeo) : null), area_geometria_m2: areaGeo ? Math.round(areaGeo) : null, divergencia_area: divergencia }
+}
+
+// Área de Polygon/MultiPolygon GeoJSON em m² (projeção local equiretangular)
+function areaGeometriaM2(geom) {
+  const rings = geom.type === 'Polygon' ? [geom.coordinates[0]]
+    : geom.type === 'MultiPolygon' ? geom.coordinates.map(p => p[0]) : []
+  let total = 0
+  for (const ring of rings) {
+    if (!ring || ring.length < 4) continue
+    const lat0 = ring[0][1] * Math.PI / 180
+    const mLng = 111320 * Math.cos(lat0), mLat = 111320
+    let s = 0
+    for (let i = 0; i < ring.length - 1; i++) {
+      const [x1, y1] = [ring[i][0] * mLng, ring[i][1] * mLat]
+      const [x2, y2] = [ring[i + 1][0] * mLng, ring[i + 1][1] * mLat]
+      s += x1 * y2 - x2 * y1
+    }
+    total += Math.abs(s / 2)
+  }
+  return total || null
 }
 
 // ─── Triangulação de zoneamento ───
@@ -418,4 +489,4 @@ async function camadas(req, res) {
   })
 }
 
-module.exports = { busca, lote, contexto, camadas, mapa, calcularParametros }
+module.exports = { busca, lote, contexto, camadas, mapa, calcularParametros, extrairDadosLote, areaGeometriaM2 }

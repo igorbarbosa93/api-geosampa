@@ -228,9 +228,8 @@
   .interf-map{ position:relative; aspect-ratio:1; background:#F6F5F1; }
   .interf-map img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   .interf-map svg{ position:absolute; inset:0; width:100%; height:100%; }
-  .interf-map .off-msg{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-size:11px; color:var(--muted); text-align:center; padding:12px; }
-  .interf-panel.off .off-msg{ display:flex; }
-  .interf-panel.off img{ display:none; }
+  .interf-map img.wms{ mix-blend-mode:multiply; }
+  .interf-off-badge{ margin-left:auto; font-size:8.5px; font-weight:700; color:var(--amber); background:var(--amber-l); padding:2px 7px; border-radius:3px; text-transform:none; letter-spacing:.3px; }
 
   /* Impressão / Exportar PDF */
   @media print{
@@ -483,6 +482,9 @@ map.on('click', async e => {
       item.sql = data.sql
       item.endereco = data.endereco || ultimoEndereco
       item.area_m2 = data.area_m2
+      item.area_geometria_m2 = data.area_geometria_m2
+      item.divergencia_area = data.divergencia_area
+      item.propriedades = data.propriedades || null
       if (data.geometria) {
         const poly = L.geoJSON(data.geometria, { style: { color: '#D8232A', weight: 3, fillColor: '#D8232A', fillOpacity: .12 } }).addTo(selLayerGroup)
         item.layers.push(poly)
@@ -515,7 +517,9 @@ function renderSelecao() {
   if (p0 && p0.ca_maximo_aplicavel) {
     metaParts.push(`CA ${String(p0.ca_maximo_aplicavel).replace('.',',')}${p0.bonus_aplicado ? ' (bônus Eixo)' : ''} · ${p0.outorga.split('—')[0].trim()}`)
   }
-  if (areaTotal > 0) metaParts.push(`Área total ≈ ${areaTotal.toLocaleString('pt-BR')} m²`)
+  if (areaTotal > 0) metaParts.push(`Área total ≈ ${areaTotal.toLocaleString('pt-BR')} m² (cadastro oficial)`)
+  const divg = selecoes.map(s => s.divergencia_area).filter(Boolean)
+  if (divg.length) metaParts.push('⚠ ' + divg[0])
   if (selecoes.length > 1) metaParts.push('Remembramento — laudo tratará como terreno único')
   $('sel-meta').textContent = metaParts.join(' · ') || selecoes[0].coordenadas
 
@@ -539,18 +543,12 @@ $('btn-analisar-lote').addEventListener('click', () => {
   if (!selecoes.length) return
   const sqls = selecoes.map(s => s.sql).filter(Boolean)
   const areaTotal = selecoes.reduce((t, s) => t + (parseFloat(s.area_m2) || 0), 0)
-  // Dimensões aproximadas do bloco (bbox em metros) para o encaixe de lâminas
+  // Dimensões reais do bloco: RETÂNGULO ROTACIONADO MÍNIMO sobre a geometria
+  // (o bbox alinhado aos eixos inflava lotes rotacionados — ex: 93x88 num lote 40x60)
   let croquiDims = null
   try {
     const rings = extrairRings(selecoes.flatMap(s => s.layers.filter(l => l instanceof L.GeoJSON)))
-    if (rings.length) {
-      const all = rings.flat()
-      const lats = all.map(p => p[0]), lngs = all.map(p => p[1])
-      const cLat = (Math.min(...lats) + Math.max(...lats)) / 2
-      const h = (Math.max(...lats) - Math.min(...lats)) * 111320
-      const w = (Math.max(...lngs) - Math.min(...lngs)) * 111320 * Math.cos(cLat * Math.PI / 180)
-      croquiDims = { testada_m: Math.round(Math.max(w, h)), profundidade_m: Math.round(Math.min(w, h)) }
-    }
+    if (rings.length) croquiDims = minRotBBox(rings)
   } catch {}
 
   const contexto = {
@@ -559,7 +557,10 @@ $('btn-analisar-lote').addEventListener('click', () => {
     area_total_m2: areaTotal || null,
     croqui: croquiDims,
     lotes: selecoes.map(s => ({
-      sql: s.sql, endereco: s.endereco, area_m2: s.area_m2, coordenadas: s.coordenadas,
+      sql: s.sql, endereco: s.endereco, area_m2: s.area_m2,
+      area_geometria_m2: s.area_geometria_m2, divergencia_area: s.divergencia_area,
+      coordenadas: s.coordenadas,
+      propriedades_cadastro: s.propriedades,
       triangulacao: s.contexto
     }))
   }
@@ -908,16 +909,20 @@ function montarInterferencias(selPolys) {
     return `${x.toFixed(2)},${y.toFixed(2)}`
   }).join(' ')
 
+  // Mapa-base de ruas por baixo de toda prancha (contexto de quarteirão) —
+  // export estático do Esri, mesmo bbox do GetMap
+  const baseUrl = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/export?bbox=${cLng - dLng},${cLat - dLat},${cLng + dLng},${cLat + dLat}&bboxSR=4326&imageSR=4326&size=640,640&format=png32&transparent=false&f=image`
+
   grid.innerHTML = TEMAS_INTERF.map(t => `
     <div class="interf-panel" id="ip-${t.tema}">
-      <div class="interf-title"><i style="background:${t.cor}"></i>${t.titulo}</div>
+      <div class="interf-title"><i style="background:${t.cor}"></i>${t.titulo}<span class="interf-off-badge hidden" id="ib-${t.tema}">sem camada</span></div>
       <div class="interf-map">
-        <img src="${API}/geosampa/mapa?lat=${cLat}&lng=${cLng}&tema=${t.tema}&buffer=${BUF}" alt="${t.titulo}"
-             onerror="document.getElementById('ip-${t.tema}').classList.add('off')" crossorigin="anonymous">
+        <img class="base" src="${baseUrl}" alt="base cartográfica" loading="lazy">
+        <img class="wms" src="${API}/geosampa/mapa?lat=${cLat}&lng=${cLng}&tema=${t.tema}&buffer=${BUF}" alt="${t.titulo}"
+             onerror="this.remove();document.getElementById('ib-${t.tema}').classList.remove('hidden')" loading="lazy">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-          ${rings.map(r => `<polygon points="${svgPoly(r)}" fill="rgba(216,35,42,.10)" stroke="#D8232A" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('')}
+          ${rings.map(r => `<polygon points="${svgPoly(r)}" fill="rgba(216,35,42,.12)" stroke="#D8232A" stroke-width="1.4" vector-effect="non-scaling-stroke"/>`).join('')}
         </svg>
-        <div class="off-msg">camada indisponível no WMS<br>verificar manualmente no GeoSampa</div>
       </div>
     </div>`).join('')
 }
@@ -957,6 +962,27 @@ function extrairRings(selPolys) {
     const c = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0]
     return c.map(([lng, lat]) => [lat, lng])
   })
+}
+
+// Retângulo rotacionado mínimo (testada × profundidade reais do lote)
+function minRotBBox(rings) {
+  const all = rings.flat()
+  const c0 = [all.reduce((s, p) => s + p[0], 0) / all.length, all.reduce((s, p) => s + p[1], 0) / all.length]
+  const mLat = 111320, mLng = 111320 * Math.cos(c0[0] * Math.PI / 180)
+  const pts = all.map(([la, lo]) => [(lo - c0[1]) * mLng, (la - c0[0]) * mLat])
+  let best = null
+  for (let a = 0; a < 180; a += 2) {
+    const rad = a * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad)
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+    for (const [x, y] of pts) {
+      const rx = x * cos + y * sin, ry = -x * sin + y * cos
+      if (rx < minX) minX = rx; if (rx > maxX) maxX = rx
+      if (ry < minY) minY = ry; if (ry > maxY) maxY = ry
+    }
+    const w = maxX - minX, h = maxY - minY
+    if (!best || w * h < best.area) best = { area: w * h, w, h }
+  }
+  return best ? { testada_m: Math.round(Math.max(best.w, best.h)), profundidade_m: Math.round(Math.min(best.w, best.h)) } : null
 }
 
 function computarTorres(rings, rec) {
